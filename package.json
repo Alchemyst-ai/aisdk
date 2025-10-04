@@ -1,6 +1,7 @@
 {
   "name": "@alchemystai/aisdk",
-  "description": "",
+  "description": "The Vercel AI SDK Integration for Alchemyst AI.",
+  "version": "0.0.1-alpha",
   "module": "index.ts",
   "type": "module",
   "repository": {

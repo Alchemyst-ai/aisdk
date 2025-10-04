@@ -1,4 +1,4 @@
-# 🧪 Alchemyst AI — Vercel AI SDK Integration
+# Alchemyst AI — Vercel AI SDK Integration
 
 **Alchemyst AI** is the **context layer** for your LLM applications — it remembers, reasons, and injects contextual intelligence automatically into every call.
 This package provides a seamless integration with [**Vercel’s AI SDK**](https://ai-sdk.dev) to enhance your Gen-AI apps with **memory**, **retrieval**, and **context-aware toolchains** — all through a single line of configuration.
