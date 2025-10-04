@@ -1,0 +1,14 @@
+{
+  "name": "@alchemystai/aisdk",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "ai": "^5.0.60"
+  }
+}
