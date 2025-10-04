@@ -1,8 +1,12 @@
 import { streamText } from "ai";
+import { describe, expect, it } from "bun:test";
+import dotenv from 'dotenv';
 import { alchemystTools } from '../src';
 
+dotenv.config();
+
 describe('streamText', () => {
-  const apiKey = "YOUR_ALCHEMYST_AI_KEY"; // Replace with a valid key or mock
+  const apiKey = process.env.ALCHEMYST_API_KEY!; // Replace with a valid key or mock
 
   it('should return a result for a simple prompt', async () => {
     const result = await streamText({
@@ -26,11 +30,13 @@ describe('streamText', () => {
   });
 
   it('should throw or return error for invalid model', async () => {
-    await expect(streamText({
-      model: "invalid-model",
-      prompt: "Test prompt",
-      tools: alchemystTools(apiKey)
-    })).rejects.toBeDefined();
+    expect(
+      streamText({
+        model: "invalid-model",
+        prompt: "Test prompt",
+        tools: alchemystTools(apiKey)
+      })
+    ).rejects.toThrow();
   });
 
   it('should return a different result for a different prompt', async () => {
