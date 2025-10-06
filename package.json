@@ -1,12 +1,32 @@
 {
   "name": "@alchemystai/aisdk",
-  "description": "The Vercel AI SDK Integration for Alchemyst AI.",
+  "description": "The Vercel AI SDK Integration for Alchemyst AI - seamlessly integrate Alchemyst's context and memory tools with Vercel AI SDK.",
   "version": "0.0.1-alpha",
-  "module": "index.ts",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "repository": {
+    "type": "git",
     "url": "https://github.com/alchemyst-ai/aisdk.git"
   },
+  "homepage": "https://github.com/alchemyst-ai/aisdk#readme",
+  "bugs": {
+    "url": "https://github.com/alchemyst-ai/aisdk/issues"
+  },
+  "author": "Alchemyst AI",
+  "license": "MIT",
   "keywords": [
     "genai",
     "context engineering",
@@ -14,21 +34,38 @@
     "context",
     "vercel",
     "ai-sdk",
-    "aisdk"
+    "aisdk",
+    "alchemyst",
+    "memory",
+    "tools"
   ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "biome check src",
+    "lint:fix": "biome check --apply src",
+    "typecheck": "tsc --noEmit"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.0.0",
+    "biome": "^0.3.3",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.4",
+    "typescript": "^5.0.0"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "ai": "^5.0.60"
   },
   "dependencies": {
     "@alchemystai/sdk": "^0.5.0",
-    "@types/jest": "^30.0.0",
-    "ai": "^5.0.60",
-    "biome": "^0.3.3",
     "dotenv": "^17.2.3",
-    "jest": "^30.2.0",
     "zod": "^4.1.11"
-  }
+  },
+  "packageManager": "pnpm@9.0.0+sha512.b4106707c7225b1748b61595953ccbebff97b54ad05d002aa3635f633b9c53cd666f7ce9b8bc44704f1fa048b9a49b55371ab2d9e9d667d1efe2ef1514bcd513"
 }

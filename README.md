@@ -29,9 +29,13 @@ import { streamText } from 'ai';
 import { alchemystTools } from '@alchemystai/aisdk';
 
 const result = await streamText({
-  model: "gpt-5-nano",
+  model: yourModel, // Any AI SDK compatible model
   prompt: "Remember that my name is Alice",
-  tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, true)
+  tools: alchemystTools({
+    apiKey: "YOUR_ALCHEMYST_AI_KEY",
+    useContext: true,
+    useMemory: true
+  })
 });
 ```
 
@@ -41,13 +45,27 @@ This automatically attaches the **Alchemyst Context Engine** to your model call 
 
 ## 🧩 API Reference
 
-### `alchemystTools(apiKey: string, enableMemory?: boolean, enableRetrieval?: boolean)`
+### `alchemystTools(options: string | AlchemystToolOptions)`
 
-| Parameter         | Type      | Default | Description                                             |
-| ----------------- | --------- | ------- | ------------------------------------------------------- |
-| `apiKey`          | `string`  | —       | Your **Alchemyst AI API key**. Required.                |
-| `enableMemory`    | `boolean` | `true`  | Enables contextual memory between user sessions.        |
-| `enableRetrieval` | `boolean` | `true`  | Enables semantic retrieval from your connected sources. |
+**Simple usage with API key:**
+```typescript
+alchemystTools("YOUR_ALCHEMYST_AI_KEY")
+```
+
+**Advanced usage with options:**
+```typescript
+alchemystTools({
+  apiKey: "YOUR_ALCHEMYST_AI_KEY",
+  useContext: true,
+  useMemory: true
+})
+```
+
+| Parameter      | Type      | Default | Description                                             |
+| -------------- | --------- | ------- | ------------------------------------------------------- |
+| `apiKey`       | `string`  | —       | Your **Alchemyst AI API key**. Required.                |
+| `useContext`   | `boolean` | `true`  | Enables context-aware retrieval from your sources.      |
+| `useMemory`    | `boolean` | `true`  | Enables persistent memory between user sessions.        |
 
 Returns an object compatible with the **`tools`** parameter of the `ai` SDK functions (`streamText`, `generateText`, `streamObject`, etc.).
 
@@ -74,12 +92,16 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const response = await streamText({
-    model: 'gpt-5-nano',
+    model: yourModel, // Your preferred AI model
     messages,
-    tools: alchemystTools(process.env.ALCHEMYST_API_KEY!, true, true),
+    tools: alchemystTools({
+      apiKey: process.env.ALCHEMYST_API_KEY!,
+      useContext: true,
+      useMemory: true
+    }),
   });
 
-  return response.toAIStreamResponse();
+  return response.toDataStreamResponse();
 }
 ```
 
@@ -102,7 +124,15 @@ ALCHEMYST_API_KEY=sk-xxxxxx
 Then reference it in your code as:
 
 ```typescript
+// Simple usage
 alchemystTools(process.env.ALCHEMYST_API_KEY!);
+
+// Or with explicit options
+alchemystTools({
+  apiKey: process.env.ALCHEMYST_API_KEY!,
+  useContext: true,
+  useMemory: true
+});
 ```
 
 ---
@@ -124,9 +154,13 @@ Alchemyst AI integrates with all Vercel AI SDK entry points:
 
 ```typescript
 const result = await streamText({
-  model: "gpt-5-nano",
+  model: yourModel, // Any AI SDK compatible model
   prompt: "Hello there!",
-  tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, false),
+  tools: alchemystTools({
+    apiKey: "YOUR_ALCHEMYST_AI_KEY",
+    useContext: false, // Disable context retrieval
+    useMemory: true    // Keep memory enabled
+  }),
 });
 ```
 
