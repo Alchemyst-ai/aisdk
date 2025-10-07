@@ -33,80 +33,49 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
 
   const memoryTools: ToolSet = {
     "add_to_memory": tool({
-      description: "Add memories to the Alchemyst AI Platform. Invoke this when you would want to add some relevant bits of conversation to remember, use this.",
+      description: "Add memory context data to Alchemyst AI.",
       inputSchema: z.object({
-        "contents": z.array(
-          z.union([
-            z.object({ content: z.string() }),
-            z.string()
-          ])
+        memoryId: z.string(),
+        contents: z.array(
+          z.object({
+            content: z.string(),
+            metadata: z.object({
+              source: z.string(),
+              messageId: z.string(),
+              type: z.string(),
+            }),
+          })
         )
       }),
-      execute: async ({ contents }) => {
-        const memoryId = crypto.randomUUID();
-        const normalizedContents = contents.map((item: string | { content: string }) =>
-          typeof item === "string" ? { content: item } : item
-        );
+      execute: async ({ memoryId, contents }) => {
         try {
-          const response = await client.v1.context.memory.add({
+          await client.v1.context.memory.add({
             memoryId,
-            contents: normalizedContents
+            contents
           });
           return "Memory added successfully."
         } catch (err) {
-          return `Memory could not be added. Error: ${err}`
-        }
-      },
-    }),
-    "update_memory": tool({
-      description: "Add memories to the Alchemyst AI Platform. Invoke this when you would want to add some relevant bits of conversation to remember, use this.",
-      inputSchema: z.object({
-        "contents": z.array(
-          z.union([
-            z.object({ content: z.string() }),
-            z.string()
-          ])
-        )
-      }),
-      execute: async ({ contents }) => {
-        const memoryId = crypto.randomUUID();
-        const normalizedContents = contents.map((item: string | { content: string }) =>
-          typeof item === "string" ? { content: item } : item
-        );
-        try {
-          const response = await client.v1.context.memory.add({
-            memoryId,
-            contents: normalizedContents
-          });
-          return "Memory added successfully."
-        } catch (err) {
-          return `Memory could not be added. Error: ${err}`
+          return `Memory could not be added. Error: ${err}`;
         }
       },
     }),
     "delete_memory": tool({
-      description: "Add memories to the Alchemyst AI Platform. Invoke this when you would want to add some relevant bits of conversation to remember, use this.",
+      description: "Delete memory context data in Alchemyst AI.",
       inputSchema: z.object({
-        "contents": z.array(
-          z.union([
-            z.object({ content: z.string() }),
-            z.string()
-          ])
-        )
+        memoryId: z.string(),
+        user_id: z.string().nullable().optional(),
+        organization_id: z.string().nullable().optional(),
       }),
-      execute: async ({ contents }) => {
-        const memoryId = crypto.randomUUID();
-        const normalizedContents = contents.map((item: string | { content: string }) =>
-          typeof item === "string" ? { content: item } : item
-        );
+      execute: async ({ memoryId, user_id, organization_id }) => {
         try {
-          const response = await client.v1.context.memory.add({
+          await client.v1.context.memory.delete({
             memoryId,
-            contents: normalizedContents
+            user_id: user_id ?? undefined,
+            organization_id: organization_id ?? undefined,
           });
-          return "Memory added successfully."
+          return "Memory deleted successfully.";
         } catch (err) {
-          return `Memory could not be added. Error: ${err}`
+          return `Memory could not be deleted. Error: ${err}`;
         }
       },
     }),
@@ -114,54 +83,59 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
 
   const contextTools: ToolSet = {
     "add_to_context": tool({
-      description: "Add memories to the Alchemyst AI Platform. Invoke this when you would want to add some relevant bits of conversation to remember, use this.",
+      description: "Add context data to Alchemyst AI.",
       inputSchema: z.object({
-        "contents": z.array(
-          z.union([
-            z.object({ content: z.string() }),
-            z.string()
-          ])
-        )
+        documents: z.array(
+          z.object({ content: z.string() }).catchall(z.string())
+        ),
+        source: z.string(),
+        context_type: z.enum(["resource", "conversation", "instruction"]),
+        scope: z.enum(["internal", "external"]).default("internal"),
+        metadata: z
+          .object({
+            fileName: z.string().optional(),
+            fileType: z.string().optional(),
+            lastModified: z.string().optional(),
+            fileSize: z.number().optional(),
+          })
+          .optional(),
       }),
-      execute: async ({ contents }) => {
-        const memoryId = crypto.randomUUID();
-        const normalizedContents = contents.map((item: string | { content: string }) =>
-          typeof item === "string" ? { content: item } : item
-        );
+      execute: async ({ documents, source, context_type, scope, metadata }) => {
         try {
-          const response = await client.v1.context.memory.add({
-            memoryId,
-            contents: normalizedContents
+          await client.v1.context.add({
+            documents,
+            source,
+            context_type,
+            scope,
+            metadata,
           });
-          return "Memory added successfully."
+          return "Context added successfully.";
         } catch (err) {
-          return `Memory could not be added. Error: ${err}`
+          return `Context could not be added. Error: ${err}`;
         }
       },
     }),
     "delete_context": tool({
-      description: "Add memories to the Alchemyst AI Platform. Invoke this when you would want to add some relevant bits of conversation to remember, use this.",
+      description: "Delete context data in Alchemyst AI (v1 context delete).",
       inputSchema: z.object({
-        "contents": z.array(
-          z.union([
-            z.object({ content: z.string() }),
-            z.string()
-          ])
-        )
+        source: z.string(),
+        user_id: z.string().nullable().optional(),
+        organization_id: z.string().nullable().optional(),
+        by_doc: z.boolean().optional(),
+        by_id: z.boolean().optional(),
       }),
-      execute: async ({ contents }) => {
-        const memoryId = crypto.randomUUID();
-        const normalizedContents = contents.map((item: string | { content: string }) =>
-          typeof item === "string" ? { content: item } : item
-        );
+      execute: async ({ source, user_id, organization_id, by_doc, by_id }) => {
         try {
-          const response = await client.v1.context.memory.add({
-            memoryId,
-            contents: normalizedContents
+          await client.v1.context.delete({
+            source,
+            user_id: user_id ?? undefined,
+            organization_id: organization_id ?? undefined,
+            by_doc: by_doc ?? true,
+            by_id: by_id ?? false,
           });
-          return "Memory added successfully."
+          return "Context deleted successfully.";
         } catch (err) {
-          return `Memory could not be added. Error: ${err}`
+          return `Context could not be deleted. Error: ${err}`;
         }
       },
     }),
