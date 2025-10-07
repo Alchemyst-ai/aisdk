@@ -43,7 +43,6 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
               .object({
                 source: z.string(),
                 messageId: z.string(),
-                type: z.string(),
               }),
           })
         )
@@ -52,12 +51,11 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
         try {
           const now = Date.now();
           const normalized = contents.map((item, idx) => {
-            const md = item.metadata ?? {} as { source?: string; messageId?: string; type?: string };
+            const md = item.metadata ?? {} as { source?: string; messageId?: string; };
             const filledMetadata = {
               ...md,
               source: md.source ?? memoryId,
               messageId: md.messageId ?? String(now + idx),
-              type: md.type ?? "text",
             };
             return { content: item.content, metadata: filledMetadata };
           });
