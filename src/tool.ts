@@ -39,20 +39,27 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
         contents: z.array(
           z.object({
             content: z.string(),
-            metadata: z.object({
-              source: z.string(),
-              messageId: z.string(),
-              type: z.string(),
-            }),
+            metadata: z
+              .object({
+                source: z.string(),
+                messageId: z.string(),
+              }),
           })
         )
       }),
       execute: async ({ memoryId, contents }) => {
         try {
-          await client.v1.context.memory.add({
-            memoryId,
-            contents
+          const now = Date.now();
+          const normalized = contents.map((item, idx) => {
+            const md = item.metadata ?? {} as { source?: string; messageId?: string; };
+            const filledMetadata = {
+              ...md,
+              source: md.source ?? memoryId,
+              messageId: md.messageId ?? String(now + idx),
+            };
+            return { content: item.content, metadata: filledMetadata };
           });
+          await client.v1.context.memory.add({ memoryId, contents: normalized });
           return "Memory added successfully."
         } catch (err) {
           return `Memory could not be added. Error: ${err}`;

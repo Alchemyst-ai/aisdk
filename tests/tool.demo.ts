@@ -20,8 +20,8 @@ async function main() {
   const addMem = await (tools as any).add_to_memory.execute({
     memoryId: sessionId,
     contents: [
-      { content: 'Hi, my name is pavan.', metadata: { source: sessionId, messageId: String(now), type: 'text' }},
-      { content: 'pavan is from Hyderabad.', metadata: { source: sessionId, messageId: String(now + 1), type: 'text' }},
+      { content: 'Hi, my name is pavan.', metadata: { source: sessionId, messageId: String(now),}},
+      { content: 'pavan is from Hyderabad.', metadata: { source: sessionId, messageId: String(now + 1),}},
     ],
   });
   console.log('add_to_memory result:', addMem);
