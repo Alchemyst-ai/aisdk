@@ -107,7 +107,13 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
             source,
             context_type,
             scope,
-            metadata,
+            metadata: {
+              ...metadata,
+              fileName: metadata?.fileName ?? `file_${Date.now()}`,
+              fileSize: JSON.stringify(documents).length,
+              fileType: metadata?.fileType ?? "text/plain",
+              lastModified: metadata?.lastModified ?? new Date().toISOString()
+            },
           });
           return "Context added successfully.";
         } catch (err) {
