@@ -41,9 +41,9 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
             content: z.string(),
             metadata: z
               .object({
-                source: z.string().optional(),
-                messageId: z.string().optional(),
-                type: z.string().optional(),
+                source: z.string(),
+                messageId: z.string(),
+                type: z.string(),
               })
               .optional(),
           })
