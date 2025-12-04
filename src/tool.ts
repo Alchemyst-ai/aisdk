@@ -99,6 +99,7 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
             fileType: z.string().optional(),
             lastModified: z.string().optional(),
             fileSize: z.number().optional(),
+            groupName: z.array(z.string()).optional(),
           })
           .optional(),
       }),

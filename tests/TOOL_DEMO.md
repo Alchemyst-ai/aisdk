@@ -90,7 +90,8 @@ Request body:
     "fileName": "tool-demo.txt",
     "fileType": "text/plain",
     "lastModified": "2025-01-01T00:00:00.000Z",
-    "fileSize": 64
+    "fileSize": 64,
+    "groupName": ["tooling", "demo"]
   }
 }
 ```

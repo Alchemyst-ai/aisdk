@@ -39,6 +39,7 @@ async function main() {
       fileType: 'text/plain',
       lastModified: new Date().toISOString(),
       fileSize: 64,
+      groupName: ['tooling', 'demo'],
     },
   });
   console.log('add_to_context result:', addCtx);
