@@ -81,6 +81,8 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
     }),
   }
 
+  const metadataSchema = z.record(z.string(), z.any());
+
   const contextTools: ToolSet = {
     "add_to_context": tool({
       description: "Add context data to Alchemyst AI.",
@@ -118,6 +120,45 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
           return "Context added successfully.";
         } catch (err) {
           return `Context could not be added. Error: ${err}`;
+        }
+      },
+    }),
+    "search_context": tool({
+      description: "Search stored context documents in Alchemyst AI.",
+      inputSchema: z.object({
+        query: z.string().min(1, "Query is required."),
+        similarity_threshold: z.number().min(0).max(1),
+        minimum_similarity_threshold: z.number().min(0).max(1),
+        scope: z.enum(["internal", "external"]).default("internal"),
+        body_metadata: metadataSchema.optional(),
+      }).refine(
+        data => data.minimum_similarity_threshold <= data.similarity_threshold,
+        {
+          message: "minimum_similarity_threshold must be <= similarity_threshold.",
+          path: ["minimum_similarity_threshold"],
+        }
+      ),
+      execute: async ({
+        query,
+        similarity_threshold,
+        minimum_similarity_threshold,
+        scope,
+        body_metadata
+      }) => {
+        try {
+          const response = await client.v1.context.search(
+            {
+              query,
+              similarity_threshold,
+              minimum_similarity_threshold,
+              scope,
+              body_metadata: body_metadata,
+            },
+          );
+
+          return response?.contexts ?? [];
+        } catch (err) {
+          return `Context search failed. Error: ${err}`;
         }
       },
     }),
