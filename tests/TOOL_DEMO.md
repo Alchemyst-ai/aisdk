@@ -8,7 +8,7 @@ This example demonstrates how to use the Alchemyst AI tools to:
 
 - Store information in memory sessions
 - Add documents to context
-- Search the stored context corpus
+- Search the stored context.
 - Clean up memory and context resources
 
 ## Prerequisites
