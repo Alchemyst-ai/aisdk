@@ -8,6 +8,7 @@ This example demonstrates how to use the Alchemyst AI tools to:
 
 - Store information in memory sessions
 - Add documents to context
+- Search the stored context.
 - Clean up memory and context resources
 
 ## Prerequisites
@@ -89,7 +90,8 @@ Request body:
     "fileName": "tool-demo.txt",
     "fileType": "text/plain",
     "lastModified": "2025-01-01T00:00:00.000Z",
-    "fileSize": 64
+    "fileSize": 64,
+    "groupName": ["tooling", "demo"]
   }
 }
 ```
@@ -98,6 +100,44 @@ Code:
 
 ```javascript
 await tools.add_to_context.execute({ documents, source, context_type, scope, metadata });
+```
+
+---
+
+### search_context
+
+Retrieves context snippets that match a semantic query.
+
+Request body:
+
+```json
+{
+  "query": "What did the customer ask about pricing for the Scale plan?",
+  "similarity_threshold": 0.8,
+  "minimum_similarity_threshold": 0.5,
+  "scope": "internal",
+  "body_metadata": {
+    "fileName": "support_thread_TCK-1234.txt",
+    "groupName": ["support", "pricing"],
+    "lastModifiedAt": "2025-01-10T12:34:56.000Z"
+  }
+}
+```
+
+Code:
+
+```javascript
+await tools.search_context.execute({
+  query,
+  similarity_threshold,
+  minimum_similarity_threshold,
+  scope,
+  body_metadata: {
+    fileName: 'support_thread_TCK-1234.txt',
+    groupName: ['support', 'pricing'],
+    lastModifiedAt: '2025-01-10T12:34:56.000Z'
+  }
+});
 ```
 
 ---

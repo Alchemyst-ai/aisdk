@@ -39,9 +39,24 @@ async function main() {
       fileType: 'text/plain',
       lastModified: new Date().toISOString(),
       fileSize: 64,
+      groupName: ['tooling', 'demo'],
     },
   });
   console.log('add_to_context result:', addCtx);
+
+  console.log('Invoke search_context ->');
+  const searchResult = await (tools as any).search_context.execute({
+    query: 'pavan?',
+    similarity_threshold: 0.8,
+    minimum_similarity_threshold: 0.5,
+    scope: 'internal',
+    body_metadata: {
+      fileName: 'tool-demo.txt',
+      groupName: ['tooling', 'demo'],
+      lastModifiedAt: new Date().toISOString(),
+    },
+  });
+  console.log('search_context result:', searchResult);
 
   console.log('Cleanup delete_context ->');
   const delCtx = await (tools as any).delete_context.execute({
