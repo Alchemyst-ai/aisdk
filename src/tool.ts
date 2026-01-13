@@ -50,7 +50,7 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
       execute: async ({ memoryId, contents }) => {
         try {
           await client.v1.context.memory.add({
-            memoryId,
+            sessionId: memoryId,
             contents
           });
           return "Memory added successfully."
