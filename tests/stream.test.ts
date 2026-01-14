@@ -1,57 +1,62 @@
 import { streamText } from "ai";
+import { google } from "@ai-sdk/google";
 import { describe, expect, it } from "bun:test";
 import dotenv from 'dotenv';
 import { alchemystTools } from '../src';
+import { join } from 'path';
 
-dotenv.config();
+dotenv.config({ path: join(__dirname, '.env') });
 
 describe('streamText', () => {
-  const apiKey = process.env.ALCHEMYST_API_KEY!; // Replace with a valid key or mock
+  const apiKey = process.env.ALCHEMYST_API_KEY!;
+  const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY!;
 
   it('should return a result for a simple prompt', async () => {
-    const result = await streamText({
-      model: "gpt-5-nano",
+    const result = streamText({
+      model: google("gemini-1.5-flash"),
       prompt: "Remember that my name is Alice",
-      tools: alchemystTools(apiKey)
+      tools: alchemystTools({apiKey})
     });
     expect(result).toBeDefined();
-    // Optionally, check for expected properties in result
-    // expect(result.text).toContain("Alice");
   });
 
   it('should handle an empty prompt gracefully', async () => {
-    const result = await streamText({
-      model: "gpt-5-nano",
+    const result = streamText({
+      model: google("gemini-1.5-flash"),
       prompt: "",
-      tools: alchemystTools(apiKey)
+      tools: alchemystTools({apiKey})
     });
     expect(result).toBeDefined();
-    // Optionally, check for error or empty response handling
-  });
-
-  it('should throw or return error for invalid model', async () => {
-    expect(
-      streamText({
-        model: "invalid-model",
-        prompt: "Test prompt",
-        tools: alchemystTools(apiKey)
-      })
-    ).rejects.toThrow();
   });
 
   it('should return a different result for a different prompt', async () => {
-    const result1 = await streamText({
-      model: "gpt-5-nano",
+    console.log("this should return different result")
+    const result1 = streamText({
+      model: google("gemini-1.5-flash"),
       prompt: "What is the capital of France?",
-      tools: alchemystTools(apiKey)
+      tools: alchemystTools({apiKey})
     });
-    const result2 = await streamText({
-      model: "gpt-5-nano",
+    const result2 = streamText({
+      model: google("gemini-1.5-flash"),
       prompt: "What is the capital of Germany?",
-      tools: alchemystTools(apiKey)
+      tools: alchemystTools({apiKey})
     });
     expect(result1).toBeDefined();
     expect(result2).toBeDefined();
     expect(result1).not.toEqual(result2);
-  });
+  },60000);
+
+  it('should throw or return error for invalid model', async () => {
+    console.log("starting the error part")
+    expect(
+      (async () => {
+        const result = streamText({
+          model: google("invalid-model"),
+          prompt: "Test prompt",
+          tools: alchemystTools({apiKey})
+        });
+        await result.text;
+      })()
+    ).rejects.toThrow();
+  },60000);
 });

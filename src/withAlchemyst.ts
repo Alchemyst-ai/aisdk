@@ -12,7 +12,7 @@ export type WithMemoryInput = {
   model: any;
   prompt: string;
   userId: string;
-  conversationId: string;
+  sessionId: string;
 };
 
 /** Options for withAlchemyst */
@@ -46,8 +46,8 @@ export function withAlchemyst(
   return async function generateTextWithMemory(
     args: WithMemoryInput
   ): Promise<GenerateTextResult<any, any>> {
-    const { model, prompt, userId, conversationId } = args;
-    const memoryId = `${userId}::${conversationId}`;
+    const { model, prompt, userId, sessionId } = args;
+    //const sessionId = `${userId}::${sessionId}`;
     const timestamp = new Date().toISOString();
 
     /**
@@ -61,9 +61,7 @@ export function withAlchemyst(
         minimum_similarity_threshold: minimumSimilarityThreshold,
         scope: "internal",
         body_metadata: {
-          memoryId,
-          userId,
-          conversationId,
+          sessionId,
         },
       });
 
@@ -91,40 +89,40 @@ export function withAlchemyst(
       prompt: enhancedPrompt,
     });
 
+    const generatedTimeStamp = new Date().toISOString();
+
     /**
      * Store user & assistant messages                 
      */
     if (saveMemories) {
       try {
         await client.v1.context.memory.add({
-          memoryId,
+          sessionId,
           contents: [
             {
-              content: prompt,
+              content: `[user]: ${prompt}`,
               metadata: {
-                source: "user",
-                messageId: `${memoryId}::user::${timestamp}`,
-                type: "message",
-                timestamp,
-                userId,
-                conversationId,
+                messageId: `${sessionId}::${timestamp}::user`,
               },
+              source: "user",
+              type: "message",
+              userId,
+              sessionId,
             },
             {
-              content: result.text,
+              content: `[assistant]: ${result.text}`,
+              timestamp,
               metadata: {
-                source: "assistant",
-                messageId: `${memoryId}::assistant::${timestamp}`,
-                type: "message",
-                timestamp,
-                userId,
-                conversationId,
+                messageId: `${sessionId}::${timestamp}::assistant`,
               },
+              source: "assistant",
+              type: "message",
+              userId,
+              sessionId,
             },
           ],
         });
       } catch (err) {
-        // Storage must never break our text generation 
         console.error("Failed to write to memory:", err);
       }
     }

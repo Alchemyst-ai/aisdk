@@ -1,8 +1,25 @@
+// tools.ts
 import AlchemystAI from "@alchemystai/sdk";
-import { tool, type ToolSet } from "ai"; // Assuming Vercel AI SDK's streamText import
+import { tool, type ToolSet } from "ai";
 import z from "zod";
 
-// Usage example
+/**
+ * Options for configuring Alchemyst tools
+ */
+interface AlchemystToolsOptions {
+  /**
+   * API key for Alchemyst authentication
+   * @default process.env.ALCHEMYST_API_KEY
+   */
+  apiKey?: string;
+  
+  /**
+   * Array of group names to filter tools. Available groups: 'context', 'memory'
+   * @default [] (returns all tools)
+   */
+  groupName?: string[];
+}
+
 /**
  * Executes a streaming text generation request using the specified model and prompt,
  * with integrated Alchemyst tools for enhanced capabilities.
@@ -16,25 +33,92 @@ import z from "zod";
  * import { streamText } from 'ai';
  * import { alchemystTools } from '@alchemystai/aisdk';
  *
+ * // Use environment variable for API key
  * const result = await streamText({
- *   model: "gpt-5-nano",
+ *   model: "gpt-4",
  *   prompt: "Remember that my name is Alice",
- *   tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, true)
+ *   tools: alchemystTools()
+ * });
+ * 
+ * // Specify API key explicitly
+ * const result = await streamText({
+ *   model: "gpt-4",
+ *   prompt: "Search my documents",
+ *   tools: alchemystTools({ apiKey: "ALCHEMYST_API_KEY" })
+ * });
+ * 
+ * // Filter by group names
+ * const result = await streamText({
+ *   model: "gpt-4",
+ *   prompt: "Add this to memory",
+ *   tools: alchemystTools({ groupName: ['memory'] })
+ * });
+ * 
+ * // Use both parameters
+ * const result = await streamText({
+ *   model: "gpt-4",
+ *   prompt: "Search context",
+ *   tools: alchemystTools({ 
+ *     apiKey: "YOUR_KEY", 
+ *     groupName: ['context'] 
+ *   })
  * });
  * ```
  *
+ * @param options - Configuration options
+ * @param options.apiKey - API key for Alchemyst authentication (defaults to ALCHEMYST_AI_API_KEY env var)
+ * @param options.groupName - Array of group names to filter tools ('context', 'memory')
+ * @returns ToolSet compatible with AI SDK
+ * @throws {Error} If API key is not provided or invalid
+ *
  * @module
  */
+export const alchemystTools = ({
+  apiKey = process.env.ALCHEMYST_API_KEY,
+  groupName = []
+}: AlchemystToolsOptions = {}): ToolSet => {
+  // Validate API key
+  if (!apiKey) {
+    throw new Error(
+      'ALCHEMYST_API_KEY is required. Please provide it via the apiKey parameter or set the ALCHEMYST_API_KEY environment variable.'
+    );
+  }
 
-export const alchemystTools = (apiKey: string, useContext: boolean = true, useMemory: boolean = true) => {
+  // Validate apiKey type
+  if (typeof apiKey !== 'string' || apiKey.trim() === '') {
+    throw new Error('apiKey must be a non-empty string');
+  }
+
+  // Validate groupName
+  if (!Array.isArray(groupName)) {
+    throw new Error('groupName must be an array of strings');
+  }
+
+  // Validate each group name is a string
+  if (groupName.some(name => typeof name !== 'string' || name.trim() === '')) {
+    throw new Error('All group names must be non-empty strings');
+  }
+
+  // Validate group names are valid
+  const validGroups = ['context', 'memory'];
+  const invalidGroups = groupName.filter(name => !validGroups.includes(name));
+  if (invalidGroups.length > 0) {
+    throw new Error(
+      `Invalid group names: ${invalidGroups.join(', ')}. Valid groups are: ${validGroups.join(', ')}`
+    );
+  }
+
   const client = new AlchemystAI({
     apiKey
   });
 
+  console.log("Now executing Tools");
+
   const memoryTools: ToolSet = {
+    
     "add_to_memory": tool({
       description: "Add memory context data to Alchemyst AI.",
-      inputSchema: z.object({
+      parameters: z.object({
         memoryId: z.string(),
         contents: z.array(
           z.object({
@@ -47,10 +131,10 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
           })
         )
       }),
-      execute: async ({ memoryId, contents }) => {
+      execute: async ({ memoryId: sessionId, contents }) => {
         try {
           await client.v1.context.memory.add({
-            sessionId: memoryId,
+            sessionId: sessionId,
             contents
           });
           return "Memory added successfully."
@@ -59,9 +143,10 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
         }
       },
     }),
+    
     "delete_memory": tool({
       description: "Delete memory context data in Alchemyst AI.",
-      inputSchema: z.object({
+      parameters: z.object({
         memoryId: z.string(),
         user_id: z.string().nullable().optional(),
         organization_id: z.string().nullable().optional(),
@@ -79,14 +164,14 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
         }
       },
     }),
-  }
+  };
 
   const metadataSchema = z.record(z.string(), z.any());
 
   const contextTools: ToolSet = {
     "add_to_context": tool({
       description: "Add context data to Alchemyst AI.",
-      inputSchema: z.object({
+      parameters: z.object({
         documents: z.array(
           z.object({ content: z.string() }).catchall(z.string())
         ),
@@ -126,7 +211,7 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
     }),
     "search_context": tool({
       description: "Search stored context documents in Alchemyst AI.",
-      inputSchema: z.object({
+      parameters: z.object({
         query: z.string().min(1, "Query is required."),
         similarity_threshold: z.number().min(0).max(1),
         minimum_similarity_threshold: z.number().min(0).max(1),
@@ -165,7 +250,7 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
     }),
     "delete_context": tool({
       description: "Delete context data in Alchemyst AI (v1 context delete).",
-      inputSchema: z.object({
+      parameters: z.object({
         source: z.string(),
         user_id: z.string().nullable().optional(),
         organization_id: z.string().nullable().optional(),
@@ -188,22 +273,61 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
       },
     }),
   };
-
+  console.log("execution done");
+  
+  // Determine which tools to include
   let finalTools: ToolSet = {};
 
-  if (useContext) {
-    finalTools = { ...finalTools, ...contextTools }
-  }
-
-  if (useMemory) {
-    finalTools = { ...finalTools, ...memoryTools }
+  // If no groupName specified, include all tools
+  if (groupName.length === 0) {
+    finalTools = { ...contextTools, ...memoryTools };
+  } else {
+    // Include tools based on groupName filter
+    if (groupName.includes('context')) {
+      finalTools = { ...finalTools, ...contextTools };
+    }
+    if (groupName.includes('memory')) {
+      finalTools = { ...finalTools, ...memoryTools };
+    }
   }
 
   return finalTools;
-}
+};
 
-// const result = await streamText({
-//   model: "gpt-5-nano", // Replace with your model name
-//   prompt: "Remember that my name is Alice",
-//   tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, true)
-// });
+/**
+ * Get list of available tool groups
+ * @returns Array of available group names
+ */
+export const getAvailableGroups = (): string[] => {
+  return ['context', 'memory'];
+};
+
+/**
+ * Get list of all available tool names
+ * @returns Array of all tool names
+ */
+export const getAvailableTools = (): string[] => {
+  return [
+    'add_to_context',
+    'search_context',
+    'delete_context',
+    'add_to_memory',
+    'delete_memory'
+  ];
+};
+
+/**
+ * Get tools filtered by group
+ * @param group - Group name ('context' or 'memory')
+ * @returns Array of tool names in the specified group
+ */
+export const getToolsByGroup = (group: 'context' | 'memory'): string[] => {
+  const toolGroups = {
+    context: ['add_to_context', 'search_context', 'delete_context'],
+    memory: ['add_to_memory', 'delete_memory']
+  };
+  return toolGroups[group] || [];
+};
+
+// Export types
+export type { AlchemystToolsOptions };
