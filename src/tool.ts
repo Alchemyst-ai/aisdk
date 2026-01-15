@@ -66,7 +66,7 @@ interface AlchemystToolsOptions {
  * ```
  *
  * @param options - Configuration options
- * @param options.apiKey - API key for Alchemyst authentication (defaults to ALCHEMYST_API_KEY env var)
+ * @param options.apiKey - API key for Alchemyst authentication (defaults to ALCHEMYST_AI_API_KEY env var)
  * @param options.groupName - Array of group names to filter tools ('context', 'memory')
  * @returns ToolSet compatible with AI SDK
  * @throws {Error} If API key is not provided or invalid
@@ -112,8 +112,11 @@ export const alchemystTools = ({
     apiKey
   });
 
+  console.log("Now executing Tools");
+
   const memoryTools: ToolSet = {
-    add_to_memory: tool({
+    
+    "add_to_memory": tool({
       description: "Add memory context data to Alchemyst AI.",
       parameters: z.object({
         memoryId: z.string(),
@@ -134,14 +137,14 @@ export const alchemystTools = ({
             sessionId: sessionId,
             contents
           });
-          return "Memory added successfully.";
+          return "Memory added successfully."
         } catch (err) {
           return `Memory could not be added. Error: ${err}`;
         }
       },
     }),
     
-    delete_memory: tool({
+    "delete_memory": tool({
       description: "Delete memory context data in Alchemyst AI.",
       parameters: z.object({
         memoryId: z.string(),
@@ -166,7 +169,7 @@ export const alchemystTools = ({
   const metadataSchema = z.record(z.string(), z.any());
 
   const contextTools: ToolSet = {
-    add_to_context: tool({
+    "add_to_context": tool({
       description: "Add context data to Alchemyst AI.",
       parameters: z.object({
         documents: z.array(
@@ -195,7 +198,7 @@ export const alchemystTools = ({
             metadata: {
               ...metadata,
               fileName: metadata?.fileName ?? `file_${Date.now()}`,
-              fileSize: metadata?.fileSize ?? JSON.stringify(documents).length,  // ✅ FIXED
+              fileSize: JSON.stringify(documents).length,
               fileType: metadata?.fileType ?? "text/plain",
               lastModified: metadata?.lastModified ?? new Date().toISOString()
             },
@@ -206,8 +209,7 @@ export const alchemystTools = ({
         }
       },
     }),
-    
-    search_context: tool({
+    "search_context": tool({
       description: "Search stored context documents in Alchemyst AI.",
       parameters: z.object({
         query: z.string().min(1, "Query is required."),
@@ -246,8 +248,7 @@ export const alchemystTools = ({
         }
       },
     }),
-    
-    delete_context: tool({
+    "delete_context": tool({
       description: "Delete context data in Alchemyst AI (v1 context delete).",
       parameters: z.object({
         source: z.string(),
@@ -272,6 +273,7 @@ export const alchemystTools = ({
       },
     }),
   };
+  console.log("execution done");
   
   // Determine which tools to include
   let finalTools: ToolSet = {};
