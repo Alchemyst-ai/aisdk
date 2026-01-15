@@ -47,7 +47,6 @@ export function withAlchemyst(
     args: WithMemoryInput
   ): Promise<GenerateTextResult<any, any>> {
     const { model, prompt, userId, sessionId } = args;
-    //const sessionId = `${userId}::${sessionId}`;
     const timestamp = new Date().toISOString();
 
     /**
@@ -62,6 +61,7 @@ export function withAlchemyst(
         scope: "internal",
         body_metadata: {
           sessionId,
+          userId,
         },
       });
 
@@ -89,7 +89,7 @@ export function withAlchemyst(
       prompt: enhancedPrompt,
     });
 
-    const generatedTimeStamp = new Date().toISOString();
+    const assistantTimestamp = new Date().toISOString();
 
     /**
      * Store user & assistant messages                 
@@ -102,23 +102,24 @@ export function withAlchemyst(
             {
               content: `[user]: ${prompt}`,
               metadata: {
-                messageId: `${sessionId}::${timestamp}::user`,
+                messageId: `${sessionId}::${timestamp}::user`, 
               },
               source: "user",
               type: "message",
               userId,
               sessionId,
+              timestamp,
             },
             {
               content: `[assistant]: ${result.text}`,
-              timestamp,
-              metadata: {
-                messageId: `${sessionId}::${timestamp}::assistant`,
+              metadata: { 
+                messageId: `${sessionId}::${assistantTimestamp}::assistant`,
               },
               source: "assistant",
               type: "message",
               userId,
               sessionId,
+              timestamp: assistantTimestamp,
             },
           ],
         });
