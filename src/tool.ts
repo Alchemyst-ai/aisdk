@@ -30,7 +30,7 @@ type ToolResponse<T = void> = ToolSuccessResponse<T> | ToolErrorResponse;
 
 /**
  * Create Alchemyst tools for use with Vercel AI SDK v5 and v6
- * Compatible with both versions v5 and v6
+ * Compatible with both versions
  */
 export const alchemystTools = ({
   apiKey = process.env.ALCHEMYST_API_KEY,

@@ -15,7 +15,6 @@ export type WithMemoryInput = {
   sessionId: string;
 };
 
-/** Options for withAlchemyst */
 export type WithAlchemystOptions = {
   apiKey: string;
   maxMemories?: number; // default 5
