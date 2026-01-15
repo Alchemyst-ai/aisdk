@@ -33,10 +33,10 @@ type ToolResponse<T = void> = ToolSuccessResponse<T> | ToolErrorResponse;
  * Compatible with both versions
  */
 export const alchemystTools = ({
-  apiKey = process.env.ALCHEMYST_API_KEY,
-  groupName = [],
-  withMemory = false,
-  withContext = true
+  apiKey,
+  groupName,
+  withMemory ,
+  withContext 
 }: AlchemystToolsOptions = {}) => {
   // Validations
   if (!apiKey) {
