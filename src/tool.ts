@@ -1,137 +1,193 @@
 import AlchemystAI from "@alchemystai/sdk";
-import { tool, type ToolSet } from "ai"; // Assuming Vercel AI SDK's streamText import
-import z from "zod";
+import { tool } from "ai";
+import { z } from "zod";
 
-// Usage example
 /**
- * Executes a streaming text generation request using the specified model and prompt,
- * with integrated Alchemyst tools for enhanced capabilities.
- *
- * @remarks
- * This module demonstrates how to use the `streamText` function to interact with a language model,
- * providing a prompt and integrating external tools via the `alchemystTools` helper.
- *
- * @example
- * ```typescript
- * import { streamText } from 'ai';
- * import { alchemystTools } from '@alchemystai/aisdk';
- *
- * const result = await streamText({
- *   model: "gpt-5-nano",
- *   prompt: "Remember that my name is Alice",
- *   tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, true)
- * });
- * ```
- *
- * @module
+ * Options for configuring Alchemyst tools
  */
+interface AlchemystToolsOptions {
+  apiKey?: string;
+  groupName?: string[];
+}
 
-export const alchemystTools = (apiKey: string, useContext: boolean = true, useMemory: boolean = true) => {
-  const client = new AlchemystAI({
-    apiKey
-  });
+/**
+ * Standard tool response types
+ */
+type ToolSuccessResponse<T = void> = {
+  success: true;
+  message?: string;
+  data?: T;
+};
 
-  const memoryTools: ToolSet = {
-    "add_to_memory": tool({
-      description: "Add memory context data to Alchemyst AI.",
-      inputSchema: z.object({
-        memoryId: z.string(),
+type ToolErrorResponse = {
+  success: false;
+  error: string;
+};
+
+type ToolResponse<T = void> = ToolSuccessResponse<T> | ToolErrorResponse;
+
+/**
+ * Create Alchemyst tools for use with Vercel AI SDK v5 and v6
+ * Compatible with both versions
+ */
+export const alchemystTools = ({
+  apiKey = process.env.ALCHEMYST_API_KEY,
+  groupName = []
+}: AlchemystToolsOptions = {}) => {
+  // Validations
+  if (!apiKey) {
+    throw new Error(
+      'ALCHEMYST_API_KEY is required. Please provide it via the apiKey parameter or set the ALCHEMYST_API_KEY environment variable.'
+    );
+  }
+
+  if (typeof apiKey !== 'string' || apiKey.trim() === '') {
+    throw new Error('apiKey must be a non-empty string');
+  }
+
+  if (!Array.isArray(groupName)) {
+    throw new Error('groupName must be an array of strings');
+  }
+
+  if (groupName.some(name => typeof name !== 'string' || name.trim() === '')) {
+    throw new Error('All group names must be non-empty strings');
+  }
+
+  const validGroups = ['context', 'memory'];
+  const invalidGroups = groupName.filter(name => !validGroups.includes(name));
+  if (invalidGroups.length > 0) {
+    throw new Error(
+      `Invalid group names: ${invalidGroups.join(', ')}. Valid groups are: ${validGroups.join(', ')}`
+    );
+  }
+
+  const client = new AlchemystAI({ apiKey });
+
+  const memoryTools = {
+    add_to_memory: tool({
+      description: "Add memory context data to Alchemyst AI. Use this to store conversation history, user preferences, or important context that should be remembered across sessions.",
+      parameters: z.object({
+        memoryId: z.string().describe("The memory session ID that groups related memories together"),
         contents: z.array(
           z.object({
-            content: z.string(),
+            content: z.string().min(1).describe("The content to store in memory (required)"),
             metadata: z.object({
-              source: z.string(),
-              messageId: z.string(),
-              type: z.string(),
-            }),
-          })
-        )
+              source: z.string().min(1).describe("Source of the content (required)"),
+              messageId: z.string().min(1).describe("Message identifier (required)"),
+              type: z.string().min(1).describe("Type of content (required)"),
+            }).passthrough(), // Allow additional fields
+          }).passthrough()
+        ).min(1).describe("Array of content items to add to memory (at least 1 required)")
       }),
-      execute: async ({ memoryId, contents }) => {
+      execute: async (params: any) => {
+        const { memoryId, contents } = params;
         try {
           await client.v1.context.memory.add({
-            memoryId,
-            contents
+            sessionId: memoryId,
+            contents: contents as any
           });
-          return "Memory added successfully."
+          return { 
+            success: true, 
+            message: `Successfully added ${contents.length} item(s) to memory with session ID: ${memoryId}` 
+          };
         } catch (err) {
-          return `Memory could not be added. Error: ${err}`;
+          return { 
+            success: false, 
+            error: err instanceof Error ? err.message : String(err)
+          };
         }
       },
-    }),
-    "delete_memory": tool({
-      description: "Delete memory context data in Alchemyst AI.",
-      inputSchema: z.object({
-        memoryId: z.string(),
-        user_id: z.string().nullable().optional(),
-        organization_id: z.string().nullable().optional(),
+    } as any), // Type assertion for v5/v6 compatibility
+    
+    delete_memory: tool({
+      description: "Delete memory context data from Alchemyst AI. Use this to remove outdated or unwanted memories.",
+      parameters: z.object({
+        memoryId: z.string().describe("The memory ID to delete"),
+        user_id: z.string().optional().describe("Optional user ID filter"),
+        organization_id: z.string().optional().describe("Optional organization ID filter"),
       }),
-      execute: async ({ memoryId, user_id, organization_id }) => {
+      execute: async (params: any) => {
+        const { memoryId, user_id, organization_id } = params;
         try {
           await client.v1.context.memory.delete({
             memoryId,
             user_id: user_id ?? undefined,
             organization_id: organization_id ?? undefined,
           });
-          return "Memory deleted successfully.";
+          return { 
+            success: true, 
+            message: `Successfully deleted memory with ID: ${memoryId}` 
+          };
         } catch (err) {
-          return `Memory could not be deleted. Error: ${err}`;
+          return { 
+            success: false, 
+            error: err instanceof Error ? err.message : String(err)
+          };
         }
       },
-    }),
-  }
+    } as any), // Type assertion for v5/v6 compatibility
+  } as const;
 
-  const metadataSchema = z.record(z.string(), z.any());
-
-  const contextTools: ToolSet = {
-    "add_to_context": tool({
-      description: "Add context data to Alchemyst AI.",
-      inputSchema: z.object({
+  const contextTools = {
+    add_to_context: tool({
+      description: "Add context documents to Alchemyst AI. Use this to provide the AI with additional knowledge, documentation, or reference materials.",
+      parameters: z.object({
         documents: z.array(
-          z.object({ content: z.string() }).catchall(z.string())
-        ),
-        source: z.string(),
-        context_type: z.enum(["resource", "conversation", "instruction"]),
-        scope: z.enum(["internal", "external"]).default("internal"),
-        metadata: z
-          .object({
-            fileName: z.string().optional(),
-            fileType: z.string().optional(),
-            lastModified: z.string().optional(),
-            fileSize: z.number().optional(),
-            groupName: z.array(z.string()).optional(),
-          })
-          .optional(),
+          z.object({ 
+            content: z.string().min(1).describe("Document content (required)")
+          }).passthrough()
+        ).min(1).describe("Documents to add to context (at least 1 required)"),
+        source: z.string().min(1).describe("Source identifier for the documents (required)"),
+        context_type: z.enum(["resource", "conversation", "instruction"]).describe("Type of context: resource (reference docs), conversation (chat history), or instruction (guidelines)"),
+        scope: z.enum(["internal", "external"]).default("internal").describe("Scope: internal (private) or external (shared)"),
+        metadata: z.object({
+          fileName: z.string().optional(),
+          fileType: z.string().optional(),
+          lastModified: z.string().optional(),
+          fileSize: z.number().optional(),
+          groupName: z.array(z.string()).optional(),
+        }).optional().describe("Optional metadata for the context"),
       }),
-      execute: async ({ documents, source, context_type, scope, metadata }) => {
+      execute: async (params: any) => {
+        const { documents, source, context_type, scope, metadata } = params;
         try {
+          const timestamp = new Date().toISOString();
+          const contentSize = JSON.stringify(documents).length;
+          
           await client.v1.context.add({
-            documents,
+            documents: documents as any,
             source,
             context_type,
             scope,
             metadata: {
               ...metadata,
               fileName: metadata?.fileName ?? `file_${Date.now()}`,
-              fileSize: JSON.stringify(documents).length,
+              fileSize: metadata?.fileSize ?? contentSize,
               fileType: metadata?.fileType ?? "text/plain",
-              lastModified: metadata?.lastModified ?? new Date().toISOString()
+              lastModified: metadata?.lastModified ?? timestamp
             },
           });
-          return "Context added successfully.";
+          return { 
+            success: true, 
+            message: `Successfully added ${documents.length} document(s) to context from source: ${source}` 
+          };
         } catch (err) {
-          return `Context could not be added. Error: ${err}`;
+          return { 
+            success: false, 
+            error: err instanceof Error ? err.message : String(err)
+          };
         }
       },
-    }),
-    "search_context": tool({
-      description: "Search stored context documents in Alchemyst AI.",
-      inputSchema: z.object({
-        query: z.string().min(1, "Query is required."),
-        similarity_threshold: z.number().min(0).max(1),
-        minimum_similarity_threshold: z.number().min(0).max(1),
-        scope: z.enum(["internal", "external"]).default("internal"),
-        body_metadata: metadataSchema.optional(),
+    } as any), // Type assertion for v5/v6 compatibility
+    
+    search_context: tool({
+      description: "Search stored context documents in Alchemyst AI. Use this to retrieve relevant information based on a query.",
+      parameters: z.object({
+        query: z.string().min(1, "Query is required.").describe("Search query string"),
+        similarity_threshold: z.number().min(0).max(1).default(0.7).describe("Maximum similarity threshold (0-1, default: 0.7)"),
+        minimum_similarity_threshold: z.number().min(0).max(1).default(0.5).describe("Minimum similarity threshold (0-1, default: 0.5)"),
+        scope: z.enum(["internal", "external"]).default("internal").describe("Search scope: internal or external"),
+        body_metadata: z.record(z.string(), z.any()).optional().describe("Optional metadata filters"),
       }).refine(
         data => data.minimum_similarity_threshold <= data.similarity_threshold,
         {
@@ -139,40 +195,43 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
           path: ["minimum_similarity_threshold"],
         }
       ),
-      execute: async ({
-        query,
-        similarity_threshold,
-        minimum_similarity_threshold,
-        scope,
-        body_metadata
-      }) => {
+      execute: async (params: any) => {
+        const { query, similarity_threshold, minimum_similarity_threshold, scope, body_metadata } = params;
         try {
-          const response = await client.v1.context.search(
-            {
-              query,
-              similarity_threshold,
-              minimum_similarity_threshold,
-              scope,
-              body_metadata: body_metadata,
-            },
-          );
-
-          return response?.contexts ?? [];
+          const response = await client.v1.context.search({
+            query,
+            similarity_threshold,
+            minimum_similarity_threshold,
+            scope,
+            body_metadata,
+          });
+          
+          const contexts = response?.contexts ?? [];
+          return { 
+            success: true,
+            message: `Found ${contexts.length} matching context(s)`,
+            data: contexts
+          };
         } catch (err) {
-          return `Context search failed. Error: ${err}`;
+          return { 
+            success: false,
+            error: err instanceof Error ? err.message : String(err)
+          };
         }
       },
-    }),
-    "delete_context": tool({
-      description: "Delete context data in Alchemyst AI (v1 context delete).",
-      inputSchema: z.object({
-        source: z.string(),
-        user_id: z.string().nullable().optional(),
-        organization_id: z.string().nullable().optional(),
-        by_doc: z.boolean().optional(),
-        by_id: z.boolean().optional(),
+    } as any), // Type assertion for v5/v6 compatibility
+    
+    delete_context: tool({
+      description: "Delete context data from Alchemyst AI. Use this to remove outdated or unwanted context documents.",
+      parameters: z.object({
+        source: z.string().describe("Source identifier to delete"),
+        user_id: z.string().optional().describe("Optional user ID filter"),
+        organization_id: z.string().optional().describe("Optional organization ID filter"),
+        by_doc: z.boolean().optional().default(true).describe("Delete by document (default: true)"),
+        by_id: z.boolean().optional().default(false).describe("Delete by ID (default: false)"),
       }),
-      execute: async ({ source, user_id, organization_id, by_doc, by_id }) => {
+      execute: async (params: any) => {
+        const { source, user_id, organization_id, by_doc, by_id } = params;
         try {
           await client.v1.context.delete({
             source,
@@ -181,29 +240,64 @@ export const alchemystTools = (apiKey: string, useContext: boolean = true, useMe
             by_doc: by_doc ?? true,
             by_id: by_id ?? false,
           });
-          return "Context deleted successfully.";
+          return { 
+            success: true, 
+            message: `Successfully deleted context from source: ${source}` 
+          };
         } catch (err) {
-          return `Context could not be deleted. Error: ${err}`;
+          return { 
+            success: false, 
+            error: err instanceof Error ? err.message : String(err)
+          };
         }
       },
-    }),
-  };
+    } as any), // Type assertion for v5/v6 compatibility
+  } as const;
 
-  let finalTools: ToolSet = {};
+  // Build final tool set based on groupName
+  let finalTools = {};
 
-  if (useContext) {
-    finalTools = { ...finalTools, ...contextTools }
-  }
-
-  if (useMemory) {
-    finalTools = { ...finalTools, ...memoryTools }
+  if (groupName.length === 0) {
+    // If no groups specified, include all tools
+    finalTools = { ...contextTools, ...memoryTools };
+  } else {
+    // Include only requested groups
+    if (groupName.includes('context')) {
+      finalTools = { ...finalTools, ...contextTools };
+    }
+    if (groupName.includes('memory')) {
+      finalTools = { ...finalTools, ...memoryTools };
+    }
   }
 
   return finalTools;
-}
+};
 
-// const result = await streamText({
-//   model: "gpt-5-nano", // Replace with your model name
-//   prompt: "Remember that my name is Alice",
-//   tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, true)
-// });
+/**
+ * Get list of available tool groups
+ */
+export const getAvailableGroups = (): string[] => ['context', 'memory'];
+
+/**
+ * Get list of all available tools
+ */
+export const getAvailableTools = (): string[] => [
+  'add_to_context',
+  'search_context',
+  'delete_context',
+  'add_to_memory',
+  'delete_memory'
+];
+
+/**
+ * Get tools by group name
+ */
+export const getToolsByGroup = (group: 'context' | 'memory'): string[] => {
+  const toolGroups = {
+    context: ['add_to_context', 'search_context', 'delete_context'],
+    memory: ['add_to_memory', 'delete_memory']
+  };
+  return toolGroups[group] || [];
+};
+
+export type { AlchemystToolsOptions, ToolResponse, ToolSuccessResponse, ToolErrorResponse };
