@@ -254,23 +254,22 @@ export const alchemystTools = ({
     } as any), // Type assertion for v5/v6 compatibility
   } as const;
 
-  // Build final tool set based on groupName
-  let finalTools = {};
-
   if (groupName.length === 0) {
-    // If no groups specified, include all tools
-    finalTools = { ...contextTools, ...memoryTools };
-  } else {
-    // Include only requested groups
-    if (groupName.includes('context')) {
-      finalTools = { ...finalTools, ...contextTools };
-    }
-    if (groupName.includes('memory')) {
-      finalTools = { ...finalTools, ...memoryTools };
-    }
+    return { ...contextTools, ...memoryTools };
   }
-
-  return finalTools;
+  
+  const selectedTools = {
+    ...(groupName.includes('context') ? contextTools : {}),
+    ...(groupName.includes('memory') ? memoryTools : {}),
+  };
+  
+  // Extra safety check
+  if (Object.keys(selectedTools).length === 0) {
+    console.warn('No tools selected, returning all tools');
+    return { ...contextTools, ...memoryTools };
+  }
+  
+  return selectedTools;
 };
 
 /**

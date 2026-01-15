@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import { alchemystTools } from '../src';
+import { config } from 'dotenv';
+import path from 'path';
 
+config({ path: path.join(__dirname, '.env') });
 async function main() {
   const apiKey = process.env.ALCHEMYST_API_KEY;
   if (!apiKey) {
@@ -12,7 +15,7 @@ async function main() {
     ALCHEMYST_API_KEY: apiKey ? 'set' : 'missing',
     });
 
-    const tools = alchemystTools(apiKey, true, true);
+    const tools = alchemystTools({apiKey});
 
   console.log('Invoke add_to_memory ->');
   const now = Date.now();
