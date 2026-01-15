@@ -39,7 +39,7 @@ const result = await generateTextWithMemory({
   model: google("gemini-2.5-flash"),
   prompt: "Remember that my name is Alice",
   userId: "user-123",
-  conversationId: "conversation-abc",
+  sessionId: "session-abc",
 });
 ```
 
@@ -60,10 +60,10 @@ This automatically attaches the **Alchemyst Context Engine** to your model call 
 
 The wrapped function accepts additional parameters:
 
-| Parameter        | Type     | Description                                     |
-| ---------------- | -------- | ----------------------------------------------- |
-| `userId`         | `string` | Unique identifier for the user.                 |
-| `conversationId` | `string` | Unique identifier for the conversation/session. |
+| Parameter   | Type     | Description                                     |
+| ----------- | -------- | ----------------------------------------------- |
+| `userId`    | `string` | Unique identifier for the user.                 |
+| `sessionId` | `string` | Unique identifier for the conversation/session. |
 
 Returns the result from the wrapped AI SDK function.
 
@@ -94,13 +94,13 @@ const generateTextWithMemory = withAlchemyst(generateText, {
 });
 
 export async function POST(req: Request) {
-  const { prompt, userId, conversationId } = await req.json();
+  const { prompt, userId, sessionId } = await req.json();
 
   const result = await generateTextWithMemory({
     model: google("gemini-2.5-flash"),
     prompt,
     userId,
-    conversationId,
+    sessionId,
   });
 
   return new Response(result.text);
@@ -165,7 +165,7 @@ const result1 = await generateTextWithMemory({
   model: google("gemini-2.5-flash"),
   prompt: "What is the capital of France?",
   userId: "12345",
-  conversationId: "test-convo-1",
+  sessionId: "test-convo-1",
 });
 
 // Second conversation
@@ -173,7 +173,7 @@ const result2 = await generateTextWithMemory({
   model: google("gemini-2.5-flash"),
   prompt: "What is the capital of Germany?",
   userId: "12345",
-  conversationId: "test-convo-2",
+  sessionId: "test-convo-2",
 });
 ```
 
@@ -182,3 +182,4 @@ const result2 = await generateTextWithMemory({
 ## 📜 License
 
 MIT © 2025 [Alchemyst AI](https://getalchemystai.com)
+
