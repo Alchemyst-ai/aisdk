@@ -15,7 +15,7 @@ const { text } = await generateTextWithMemory({
   model: googleClient,
   prompt: 'What is love?',
   userId: "12345",
-  conversationId: "YOUR_CONVO_ID",
+  sessionId: "YOUR_CONVO_ID",
 });
 
 console.log(text)
