@@ -8,6 +8,8 @@ import { z } from "zod";
 interface AlchemystToolsOptions {
   apiKey?: string;
   groupName?: string[];
+  withMemory?: boolean;
+  withContext?: boolean;
 }
 
 /**
@@ -31,8 +33,10 @@ type ToolResponse<T = void> = ToolSuccessResponse<T> | ToolErrorResponse;
  * Compatible with both versions
  */
 export const alchemystTools = ({
-  apiKey = process.env.ALCHEMYST_API_KEY,
-  groupName = []
+  apiKey,
+  groupName,
+  withMemory ,
+  withContext 
 }: AlchemystToolsOptions = {}) => {
   // Validations
   if (!apiKey) {
@@ -51,14 +55,6 @@ export const alchemystTools = ({
 
   if (groupName.some(name => typeof name !== 'string' || name.trim() === '')) {
     throw new Error('All group names must be non-empty strings');
-  }
-
-  const validGroups = ['context', 'memory'];
-  const invalidGroups = groupName.filter(name => !validGroups.includes(name));
-  if (invalidGroups.length > 0) {
-    throw new Error(
-      `Invalid group names: ${invalidGroups.join(', ')}. Valid groups are: ${validGroups.join(', ')}`
-    );
   }
 
   const client = new AlchemystAI({ apiKey });
@@ -254,23 +250,29 @@ export const alchemystTools = ({
     } as any), // Type assertion for v5/v6 compatibility
   } as const;
 
-  // Build final tool set based on groupName
-  let finalTools = {};
-
-  if (groupName.length === 0) {
-    // If no groups specified, include all tools
-    finalTools = { ...contextTools, ...memoryTools };
-  } else {
-    // Include only requested groups
-    if (groupName.includes('context')) {
-      finalTools = { ...finalTools, ...contextTools };
-    }
-    if (groupName.includes('memory')) {
-      finalTools = { ...finalTools, ...memoryTools };
-    }
+  // Determine which tools to include based on parameters
+  // Priority: groupName > withMemory/withContext > defaults
+  let includeContext = withContext;
+  let includeMemory = withMemory;
+  
+  // If groupName is provided and not empty, use it to override
+  if (groupName.length > 0) {
+    includeContext = groupName.includes('context');
+    includeMemory = groupName.includes('memory');
   }
-
-  return finalTools;
+  
+  // Safety check: ensure at least one tool group is selected
+  if (!includeContext && !includeMemory) {
+    console.warn('No tools selected, enabling context tools by default');
+    includeContext = true;
+  }
+  
+  const selectedTools = {
+    ...(includeContext ? contextTools : {}),
+    ...(includeMemory ? memoryTools : {}),
+  };
+  
+  return selectedTools;
 };
 
 /**
