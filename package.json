@@ -23,14 +23,14 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@ai-sdk/google": "^1.0.0",
+    "@ai-sdk/google": "^3.0.8",
     "@alchemystai/sdk": "^0.11.1",
     "@types/jest": "^30.0.0",
-    "ai": "^4.0.0",
+    "ai": "^6.0.0",
     "biome": "^0.3.3",
     "dotenv": "^17.2.3",
     "jest": "^30.2.0",
     "latest": "^0.2.0",
-    "zod": "^4.1.11"
+    "zod": "^3.23.8"
   }
 }
