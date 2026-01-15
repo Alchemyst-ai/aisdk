@@ -34,7 +34,7 @@ describe('withAlchemyst middleware', () => {
       model: googleClient,
       prompt: 'What is love?',
       userId: "12345",
-      conversationId: "test-convo-id",
+      sessionId: "test-convo-id",
     });
 
     expect(result).toBeDefined();
@@ -59,14 +59,14 @@ describe('withAlchemyst middleware', () => {
       model: googleClient,
       prompt: 'What is the capital of France?',
       userId: "12345",
-      conversationId: "test-convo-1",
+      sessionId: "test-convo-1",
     });
 
     const result2 = await generateTextWithMemory({
       model: googleClient,
       prompt: 'What is the capital of Germany?',
       userId: "12345",
-      conversationId: "test-convo-2",
+      sessionId: "test-convo-2",
     });
 
     expect(result1).toBeDefined();
@@ -76,11 +76,11 @@ describe('withAlchemyst middleware', () => {
     return true;
   }, 60_000);
 
-  it('should work with different userId and conversationId', async () => {
+  it('should work with different userId and sessionId', async () => {
     console.log("Waiting for 30s to not hit rate limit")
     await new Promise(resolve => setTimeout(resolve, 30000));
 
-    console.log("should work with different userId and conversationId");
+    console.log("should work with different userId and sessionId");
     console.log("API Key = ", process.env.GOOGLE_GENERATIVE_AI_API_KEY);
     console.log("Alchemyst API Key = ", process.env.ALCHEMYST_API_KEY);
     const generateTextWithMemory = withAlchemyst(generateText, {
@@ -93,7 +93,7 @@ describe('withAlchemyst middleware', () => {
       model: googleClient,
       prompt: 'Hello',
       userId: "user-abc",
-      conversationId: "convo-xyz",
+      sessionId: "convo-xyz",
     });
 
     expect(result).toBeDefined();
@@ -119,7 +119,7 @@ describe('withAlchemyst middleware', () => {
       model: googleClient,
       prompt: '',
       userId: "12345",
-      conversationId: "test-convo-empty",
+      sessionId: "test-convo-empty",
     });
 
     expect(result).toBeDefined();
@@ -145,7 +145,7 @@ describe('withAlchemyst middleware', () => {
         model: googleClient,
         prompt: 'Test prompt',
         userId: "12345",
-        conversationId: "test-convo-invalid",
+        sessionId: "test-convo-invalid",
       })
     ).rejects.toThrow();
   }, 60_000);
