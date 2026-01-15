@@ -26,7 +26,7 @@ interface AlchemystOptions {
 
 interface ExtendedParams {
   userId?: string;
-  conversationId?: string;
+  sessionId?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -61,7 +61,7 @@ export function withAlchemyst<T extends AnyAIFunction>(
   });
 
   const wrappedFn = async (params: AnyParams & ExtendedParams): Promise<AnyResult> => {
-    const { userId, conversationId, metadata: callMetadata, ...aiFunctionParams } = params;
+    const { userId, sessionId: conversationId, metadata: callMetadata, ...aiFunctionParams } = params;
 
     let enhancedParams = { ...aiFunctionParams } as AnyParams;
 
