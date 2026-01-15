@@ -8,6 +8,8 @@ import { z } from "zod";
 interface AlchemystToolsOptions {
   apiKey?: string;
   groupName?: string[];
+  withMemory?: boolean;
+  withContext?: boolean;
 }
 
 /**
@@ -32,7 +34,9 @@ type ToolResponse<T = void> = ToolSuccessResponse<T> | ToolErrorResponse;
  */
 export const alchemystTools = ({
   apiKey = process.env.ALCHEMYST_API_KEY,
-  groupName = []
+  groupName = [],
+  withMemory = false,
+  withContext = true
 }: AlchemystToolsOptions = {}) => {
   // Validations
   if (!apiKey) {
@@ -51,14 +55,6 @@ export const alchemystTools = ({
 
   if (groupName.some(name => typeof name !== 'string' || name.trim() === '')) {
     throw new Error('All group names must be non-empty strings');
-  }
-
-  const validGroups = ['context', 'memory'];
-  const invalidGroups = groupName.filter(name => !validGroups.includes(name));
-  if (invalidGroups.length > 0) {
-    throw new Error(
-      `Invalid group names: ${invalidGroups.join(', ')}. Valid groups are: ${validGroups.join(', ')}`
-    );
   }
 
   const client = new AlchemystAI({ apiKey });
@@ -254,20 +250,27 @@ export const alchemystTools = ({
     } as any), // Type assertion for v5/v6 compatibility
   } as const;
 
-  if (groupName.length === 0) {
-    return { ...contextTools, ...memoryTools };
+  // Determine which tools to include based on parameters
+  // Priority: groupName > withMemory/withContext > defaults
+  let includeContext = withContext;
+  let includeMemory = withMemory;
+  
+  // If groupName is provided and not empty, use it to override
+  if (groupName.length > 0) {
+    includeContext = groupName.includes('context');
+    includeMemory = groupName.includes('memory');
+  }
+  
+  // Safety check: ensure at least one tool group is selected
+  if (!includeContext && !includeMemory) {
+    console.warn('No tools selected, enabling context tools by default');
+    includeContext = true;
   }
   
   const selectedTools = {
-    ...(groupName.includes('context') ? contextTools : {}),
-    ...(groupName.includes('memory') ? memoryTools : {}),
+    ...(includeContext ? contextTools : {}),
+    ...(includeMemory ? memoryTools : {}),
   };
-  
-  // Extra safety check
-  if (Object.keys(selectedTools).length === 0) {
-    console.warn('No tools selected, returning all tools');
-    return { ...contextTools, ...memoryTools };
-  }
   
   return selectedTools;
 };
