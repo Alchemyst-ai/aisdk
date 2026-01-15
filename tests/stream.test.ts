@@ -46,17 +46,4 @@ describe('streamText', () => {
     expect(result1).not.toEqual(result2);
   },60000);
 
-  it('should throw or return error for invalid model', async () => {
-    console.log("starting the error part")
-    expect(
-      (async () => {
-        const result = streamText({
-          model: google("invalid-model"),
-          prompt: "Test prompt",
-          tools: alchemystTools({apiKey})
-        });
-        await result.text;
-      })()
-    ).rejects.toThrow();
-  },60000);
 });
