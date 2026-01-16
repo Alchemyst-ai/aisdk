@@ -44,7 +44,7 @@ export function withAlchemyst<T extends AnyAIFunction>(
   options: AlchemystOptions = {}
 ): (params: Parameters<T>[0] & ExtendedParams) => Promise<Awaited<ReturnType<T>>> {
   const {
-    apiKey,
+    apiKey = process.env.ALCHEMYST_API_KEY,
     baseUrl,
     source = `memory_conversation_${Date.now()}`,
     withMemory = true,

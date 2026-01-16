@@ -1,5 +1,9 @@
+import { config } from 'dotenv';
 import 'dotenv/config';
+import path from 'path';
 import { alchemystTools } from '../src';
+
+config({ path: path.join(__dirname, '.env') });
 
 async function main() {
   const apiKey = process.env.ALCHEMYST_API_KEY;
@@ -8,23 +12,32 @@ async function main() {
     process.exit(1);
   }
 
-    console.log('Boot: starting tool demo with env:', {
+  console.log('Boot: starting tool demo with env:', {
     ALCHEMYST_API_KEY: apiKey ? 'set' : 'missing',
-    });
+  });
 
-    const tools = alchemystTools(apiKey, true, true);
+  // Enable both memory and context tools
+  const tools = alchemystTools({
+    apiKey,
+    withMemory: true,
+    withContext: true
+  });
+
+  console.log('Available tools:', Object.keys(tools));
+  console.log('');
 
   console.log('Invoke add_to_memory ->');
   const now = Date.now();
   const sessionId = `${now}`;
   const addMem = await (tools as any).add_to_memory.execute({
-    memoryId: sessionId,
+    sessionId: sessionId,
     contents: [
-      { content: 'Hi, my name is pavan.', metadata: { source: sessionId, messageId: String(now), type: 'text' }},
-      { content: 'pavan is from Hyderabad.', metadata: { source: sessionId, messageId: String(now + 1), type: 'text' }},
+      { content: 'Hi, my name is pavan.', metadata: { source: sessionId, messageId: String(now), type: 'text' } },
+      { content: 'pavan is from Hyderabad.', metadata: { source: sessionId, messageId: String(now + 1), type: 'text' } },
     ],
   });
   console.log('add_to_memory result:', addMem);
+  console.log('');
 
   console.log('Invoke add_to_context ->');
   const addCtx = await (tools as any).add_to_context.execute({
@@ -43,6 +56,7 @@ async function main() {
     },
   });
   console.log('add_to_context result:', addCtx);
+  console.log('');
 
   console.log('Invoke search_context ->');
   const searchResult = await (tools as any).search_context.execute({
@@ -57,6 +71,7 @@ async function main() {
     },
   });
   console.log('search_context result:', searchResult);
+  console.log('');
 
   console.log('Cleanup delete_context ->');
   const delCtx = await (tools as any).delete_context.execute({
@@ -65,15 +80,19 @@ async function main() {
     by_id: false,
   });
   console.log('delete_context result:', delCtx);
+  console.log('');
 
   console.log('Cleanup delete_memory ->');
   const delMem = await (tools as any).delete_memory.execute({
-    memoryId: sessionId,
+    sessionId: sessionId,
   });
   console.log('delete_memory result:', delMem);
+  console.log('');
+
+  console.log('✅ All operations completed successfully!');
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error('❌ Error:', err);
   process.exit(1);
 });
