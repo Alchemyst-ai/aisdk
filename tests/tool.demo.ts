@@ -1,7 +1,7 @@
-import 'dotenv/config';
-import { alchemystTools } from '../src';
 import { config } from 'dotenv';
+import 'dotenv/config';
 import path from 'path';
+import { alchemystTools } from '../src';
 
 config({ path: path.join(__dirname, '.env') });
 
@@ -17,7 +17,7 @@ async function main() {
   });
 
   // Enable both memory and context tools
-  const tools = alchemystTools({ 
+  const tools = alchemystTools({
     apiKey,
     withMemory: true,
     withContext: true
@@ -30,10 +30,10 @@ async function main() {
   const now = Date.now();
   const sessionId = `${now}`;
   const addMem = await (tools as any).add_to_memory.execute({
-    memoryId: sessionId,
+    sessionId: sessionId,
     contents: [
-      { content: 'Hi, my name is pavan.', metadata: { source: sessionId, messageId: String(now), type: 'text' }},
-      { content: 'pavan is from Hyderabad.', metadata: { source: sessionId, messageId: String(now + 1), type: 'text' }},
+      { content: 'Hi, my name is pavan.', metadata: { source: sessionId, messageId: String(now), type: 'text' } },
+      { content: 'pavan is from Hyderabad.', metadata: { source: sessionId, messageId: String(now + 1), type: 'text' } },
     ],
   });
   console.log('add_to_memory result:', addMem);
@@ -84,7 +84,7 @@ async function main() {
 
   console.log('Cleanup delete_memory ->');
   const delMem = await (tools as any).delete_memory.execute({
-    memoryId: sessionId,
+    sessionId: sessionId,
   });
   console.log('delete_memory result:', delMem);
   console.log('');
