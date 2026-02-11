@@ -1,7 +1,7 @@
 # Alchemyst AI — Vercel AI SDK Integration
 
 **Alchemyst AI** is the **context layer** for your LLM applications — it remembers, reasons, and injects contextual intelligence automatically into every call.
-This package provides a seamless integration with [**Vercel’s AI SDK**](https://ai-sdk.dev) to enhance your Gen-AI apps with **memory**, **retrieval**, and **context-aware toolchains** — all through a single line of configuration.
+This package provides a seamless integration with [**Vercel's AI SDK**](https://ai-sdk.dev) to enhance your Gen-AI apps with **memory**, **retrieval**, and **context-aware toolchains** — all through a single line of configuration.
 
 ---
 
@@ -22,16 +22,24 @@ bun add @alchemystai/aisdk
 
 ## ⚡ Quick Start
 
-Here’s how to plug Alchemyst AI into your `ai` SDK call in **one line**:
+Here's how to plug Alchemyst AI into your `ai` SDK call using the `withAlchemyst` middleware:
 
 ```typescript
-import { streamText } from 'ai';
-import { alchemystTools } from '@alchemystai/aisdk';
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
+import { withAlchemyst } from '@alchemystai/aisdk';
 
-const result = await streamText({
-  model: "gpt-5-nano",
+const generateTextWithMemory = withAlchemyst(generateText, {
+  source: "my_app", // optional
+  apiKey: "YOUR_ALCHEMYST_API_KEY", // optional, can be left if you have ALCHEMYST_AI_API_KEY
+  debug: true // optional, defaults to false
+});
+
+const result = await generateTextWithMemory({
+  model: google("gemini-2.5-flash"),
   prompt: "Remember that my name is Alice",
-  tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, true)
+  userId: "user-123",
+  sessionId: "session-abc",
 });
 ```
 
@@ -41,15 +49,23 @@ This automatically attaches the **Alchemyst Context Engine** to your model call 
 
 ## 🧩 API Reference
 
-### `alchemystTools(apiKey: string, enableMemory?: boolean, enableRetrieval?: boolean)`
+### `withAlchemyst(fn, options)`
 
-| Parameter         | Type      | Default | Description                                             |
-| ----------------- | --------- | ------- | ------------------------------------------------------- |
-| `apiKey`          | `string`  | —       | Your **Alchemyst AI API key**. Required.                |
-| `enableMemory`    | `boolean` | `true`  | Enables contextual memory between user sessions.        |
-| `enableRetrieval` | `boolean` | `true`  | Enables semantic retrieval from your connected sources. |
+| Parameter        | Type       | Default | Description                                         |
+| ---------------- | ---------- | ------- | --------------------------------------------------- |
+| `fn`             | `Function` | —       | The AI SDK function to wrap (e.g., `generateText`). |
+| `options.source` | `string`   | —       | Identifier for your application source.             |
+| `options.apiKey` | `string`   | —       | Your **Alchemyst AI API key**. Required.            |
+| `options.debug`  | `boolean`  | `false` | Enables debug logging.                              |
 
-Returns an object compatible with the **`tools`** parameter of the `ai` SDK functions (`streamText`, `generateText`, `streamObject`, etc.).
+The wrapped function accepts additional parameters:
+
+| Parameter   | Type     | Description                                     |
+| ----------- | -------- | ----------------------------------------------- |
+| `userId`    | `string` | Unique identifier for the user.                 |
+| `sessionId` | `string` | Unique identifier for the conversation/session. |
+
+Returns the result from the wrapped AI SDK function.
 
 ---
 
@@ -67,19 +83,27 @@ Once integrated, Alchemyst AI automatically:
 ## 💡 Example: Contextual Chatbot
 
 ```typescript
-import { streamText } from 'ai';
-import { alchemystTools } from '@alchemystai/aisdk';
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
+import { withAlchemyst } from '@alchemystai/aisdk';
+
+const generateTextWithMemory = withAlchemyst(generateText, {
+  source: "chatbot",
+  apiKey: process.env.ALCHEMYST_API_KEY!,
+  debug: false
+});
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { prompt, userId, sessionId } = await req.json();
 
-  const response = await streamText({
-    model: 'gpt-5-nano',
-    messages,
-    tools: alchemystTools(process.env.ALCHEMYST_API_KEY!, true, true),
+  const result = await generateTextWithMemory({
+    model: google("gemini-2.5-flash"),
+    prompt,
+    userId,
+    sessionId,
   });
 
-  return response.toAIStreamResponse();
+  return new Response(result.text);
 }
 ```
 
@@ -102,7 +126,10 @@ ALCHEMYST_API_KEY=sk-xxxxxx
 Then reference it in your code as:
 
 ```typescript
-alchemystTools(process.env.ALCHEMYST_API_KEY!);
+const generateTextWithMemory = withAlchemyst(generateText, {
+  source: "my_app",
+  apiKey: process.env.ALCHEMYST_API_KEY!,
+});
 ```
 
 ---
@@ -120,13 +147,33 @@ Alchemyst AI integrates with all Vercel AI SDK entry points:
 
 ---
 
-## 🧪 Example with Retrieval Off
+## 🧪 Example with Different Conversations
 
 ```typescript
-const result = await streamText({
-  model: "gpt-5-nano",
-  prompt: "Hello there!",
-  tools: alchemystTools("YOUR_ALCHEMYST_AI_KEY", true, false),
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
+import { withAlchemyst } from '@alchemystai/aisdk';
+
+const generateTextWithMemory = withAlchemyst(generateText, {
+  source: "api_sdk_test",
+  apiKey: "YOUR_ALCHEMYST_API_KEY",
+  debug: true
+});
+
+// First conversation
+const result1 = await generateTextWithMemory({
+  model: google("gemini-2.5-flash"),
+  prompt: "What is the capital of France?",
+  userId: "12345",
+  sessionId: "test-convo-1",
+});
+
+// Second conversation
+const result2 = await generateTextWithMemory({
+  model: google("gemini-2.5-flash"),
+  prompt: "What is the capital of Germany?",
+  userId: "12345",
+  sessionId: "test-convo-2",
 });
 ```
 

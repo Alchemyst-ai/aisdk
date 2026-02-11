@@ -4,7 +4,7 @@ import AlchemystAI from "@alchemystai/sdk";
 import { tool } from "ai";
 import type z from "zod";
 import { toolParamSchemas } from "./schemas";
-
+import type { Tool } from "ai";
 export type ToolGroup = 'context' | 'memory';
 
 export type AddToContextResult =
@@ -12,8 +12,8 @@ export type AddToContextResult =
   | { success: false; message: string };
 
 export type SearchContextResult =
-  | { success: true; data: any[] }
-  | { success: false; message: string };
+  | { success: true; data: any[];message:string }
+  | { success: false; message: string;error?:string };
 
 export type DeleteContextResult =
   | { success: true; message: string }
@@ -29,21 +29,21 @@ export type DeleteMemoryResult =
 
 // Tool function shapes (match how tests call them directly)
 
-type ToolEntry<Params, Result> = {
-  description: string;
-  parameters: unknown; // zod schema, but keep `unknown` to avoid tight coupling
-  execute: (params: Params) => Promise<Result>;
-};
+// type ToolEntry<Params, Result> = {
+//   description: string;
+//   parameters: unknown; // zod schema, but keep `unknown` to avoid tight coupling
+//   execute: (params: Params) => Promise<Result>;
+// };
 
 export type ContextTools = {
-  add_to_context: ToolEntry<z.infer<typeof toolParamSchemas.add_to_context>, AddToContextResult>;
-  search_context: ToolEntry<z.infer<typeof toolParamSchemas.search_context>, SearchContextResult & { message?: string }>;
-  delete_context: ToolEntry<z.infer<typeof toolParamSchemas.delete_context>, DeleteContextResult>;
+  add_to_context: Tool<z.infer<typeof toolParamSchemas.add_to_context>, AddToContextResult>;
+  search_context: Tool<z.infer<typeof toolParamSchemas.search_context>, SearchContextResult & { message?: string }>;
+  delete_context: Tool<z.infer<typeof toolParamSchemas.delete_context>, DeleteContextResult>;
 };
 
 export type MemoryTools = {
-  add_to_memory: ToolEntry<z.infer<typeof toolParamSchemas.add_to_memory>, AddToMemoryResult>;
-  delete_memory: ToolEntry<z.infer<typeof toolParamSchemas.delete_memory>, DeleteMemoryResult>;
+  add_to_memory: Tool<z.infer<typeof toolParamSchemas.add_to_memory>, AddToMemoryResult>;
+  delete_memory: Tool<z.infer<typeof toolParamSchemas.delete_memory>, DeleteMemoryResult>;
 };
 
 export type AlchemystTools = ContextTools & MemoryTools;
@@ -79,15 +79,15 @@ export const alchemystTools = <
   withMemory = false as WithMemory,
   withContext = true as WithContext
 }: AlchemystToolsOptions<WithContext, WithMemory> = {} as any): ToolsFromFlags<WithContext, WithMemory> => {
-  // Validations
+
+  if (typeof apiKey === 'string' && apiKey.trim() === '') {
+    throw new Error('apiKey must be a non-empty string');
+  }
+  
   if (!apiKey) {
     throw new Error(
       'ALCHEMYST_API_KEY is required. Please provide it via the apiKey parameter or set the ALCHEMYST_API_KEY environment variable.'
     );
-  }
-
-  if (typeof apiKey !== 'string' || apiKey.trim() === '') {
-    throw new Error('apiKey must be a non-empty string');
   }
 
   if (!Array.isArray(groupName)) {
@@ -161,7 +161,7 @@ export const alchemystTools = <
         try {
           const timestamp = new Date().toISOString();
           const contentSize = JSON.stringify(documents).length;
-
+    
           await client.v1.context.add({
             documents: documents,
             source,
@@ -182,7 +182,7 @@ export const alchemystTools = <
         } catch (err) {
           return {
             success: false,
-            error: err instanceof Error ? err.message : String(err)
+            message: err instanceof Error ? err.message : String(err)  // Changed from 'error' to 'message'
           };
         }
       },
@@ -201,7 +201,7 @@ export const alchemystTools = <
             scope,
             body_metadata,
           });
-
+    
           const contexts = response?.contexts ?? [];
           return {
             success: true,
@@ -211,7 +211,7 @@ export const alchemystTools = <
         } catch (err) {
           return {
             success: false,
-            error: err instanceof Error ? err.message : String(err)
+            message: err instanceof Error ? err.message : String(err)  // Changed from 'error' to 'message'
           };
         }
       },
@@ -237,7 +237,7 @@ export const alchemystTools = <
         } catch (err) {
           return {
             success: false,
-            error: err instanceof Error ? err.message : String(err)
+            message: err instanceof Error ? err.message : String(err)  // Changed from 'error' to 'message'
           };
         }
       },
