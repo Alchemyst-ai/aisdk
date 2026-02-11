@@ -1,7 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import dotenv from 'dotenv';
-import { withAlchemyst } from '../src/middleware';
+import { withAlchemyst } from '../src';
 
 dotenv.config();
 

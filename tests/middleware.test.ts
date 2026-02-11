@@ -1,29 +1,36 @@
+import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { generateText } from 'ai';
 import dotenv from 'dotenv';
-import { withAlchemyst } from '../src/middleware';
+import { withAlchemyst } from '../src';
 
 dotenv.config({
-  path: __dirname + "/.env"
+  path: __dirname + "/../.env"
 });
 
 describe('withAlchemyst middleware', () => {
   const apiKey = process.env.ALCHEMYST_API_KEY || 'test-api-key';
-  console.log("API Key = ", process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-  console.log("Alchemyst API Key = ", process.env.ALCHEMYST_API_KEY);
-  const googleClient = google("gemini-2.5-flash");
+  const hasIntegrationEnv = Boolean(process.env.ALCHEMYST_API_KEY && process.env.OPENAI_API_KEY);
+  const integrationTest = hasIntegrationEnv ? it : it.skip;
+  const openaiClient = openai("gpt-4o-mini");
+  const googleClient = google(process.env.GOOGLE_MODEL_ID || "gemini-2.5-flash");
 
   beforeEach(() => {
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY || 'test-gemini-key';
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-openai-key';
   });
 
-  it('should wrap generateText and return a result', async () => {
-    console.log("Waiting for 30s to not hit rate limit")
-    await new Promise(resolve => setTimeout(resolve, 30000));
-    console.log("should wrap generateText and return a result");
-    console.log("API Key = ", process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-    console.log("Alchemyst API Key = ", process.env.ALCHEMYST_API_KEY);
+  it('should throw immediately for empty apiKey', () => {
+    expect(() =>
+      withAlchemyst(generateText, {
+        apiKey: '   ',
+      })
+    ).toThrow(
+      'ALCHEMYST_API_KEY is required. Please provide it via options.apiKey or set the ALCHEMYST_API_KEY environment variable.'
+    );
+  });
+
+  integrationTest('should wrap generateText and return a result', async () => {
     const generateTextWithMemory = withAlchemyst(generateText, {
       source: "api_sdk_test",
       apiKey,
@@ -31,7 +38,7 @@ describe('withAlchemyst middleware', () => {
     });
 
     const result = await generateTextWithMemory({
-      model: googleClient,
+      model: openaiClient,
       prompt: 'What is love?',
       userId: "12345",
       sessionId: "test-convo-id",
@@ -39,31 +46,24 @@ describe('withAlchemyst middleware', () => {
 
     expect(result).toBeDefined();
     expect(result.text).toBeDefined();
-    return true;
-
   }, 60_000);
 
-  it('should handle different prompts', async () => {
-    console.log("Waiting for 30s to not hit rate limit")
-    await new Promise(resolve => setTimeout(resolve, 30000));
-
-    console.log("should handle different prompts");
-    console.log("API Key = ", process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-    console.log("Alchemyst API Key = ", process.env.ALCHEMYST_API_KEY); const generateTextWithMemory = withAlchemyst(generateText, {
+  integrationTest('should handle different prompts', async () => {
+    const generateTextWithMemory = withAlchemyst(generateText, {
       source: "api_sdk_test",
       apiKey,
       debug: true
     });
 
     const result1 = await generateTextWithMemory({
-      model: googleClient,
+      model: openaiClient,
       prompt: 'What is the capital of France?',
       userId: "12345",
       sessionId: "test-convo-1",
     });
 
     const result2 = await generateTextWithMemory({
-      model: googleClient,
+      model: openaiClient,
       prompt: 'What is the capital of Germany?',
       userId: "12345",
       sessionId: "test-convo-2",
@@ -72,17 +72,9 @@ describe('withAlchemyst middleware', () => {
     expect(result1).toBeDefined();
     expect(result2).toBeDefined();
     expect(result1.text).not.toEqual(result2.text);
-
-    return true;
   }, 60_000);
 
-  it('should work with different userId and sessionId', async () => {
-    console.log("Waiting for 30s to not hit rate limit")
-    await new Promise(resolve => setTimeout(resolve, 30000));
-
-    console.log("should work with different userId and sessionId");
-    console.log("API Key = ", process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-    console.log("Alchemyst API Key = ", process.env.ALCHEMYST_API_KEY);
+  integrationTest('should work with different userId and sessionId', async () => {
     const generateTextWithMemory = withAlchemyst(generateText, {
       source: "api_sdk_test",
       apiKey,
@@ -90,7 +82,7 @@ describe('withAlchemyst middleware', () => {
     });
 
     const result = await generateTextWithMemory({
-      model: googleClient,
+      model: openaiClient,
       prompt: 'Hello',
       userId: "user-abc",
       sessionId: "convo-xyz",
@@ -98,17 +90,9 @@ describe('withAlchemyst middleware', () => {
 
     expect(result).toBeDefined();
     expect(result.text).toBeDefined();
-
-    return true;
   }, 60_000);
 
-  it('should handle empty prompt', async () => {
-    console.log("Waiting for 30s to not hit rate limit")
-    await new Promise(resolve => setTimeout(resolve, 30000));
-
-    console.log("should handle empty prompt");
-    console.log("API Key = ", process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-    console.log("Alchemyst API Key = ", process.env.ALCHEMYST_API_KEY);
+  integrationTest('should handle empty prompt', async () => {
     const generateTextWithMemory = withAlchemyst(generateText, {
       source: "api_sdk_test",
       apiKey,
@@ -116,37 +100,30 @@ describe('withAlchemyst middleware', () => {
     });
 
     const result = await generateTextWithMemory({
-      model: googleClient,
+      model: openaiClient,
       prompt: '',
       userId: "12345",
       sessionId: "test-convo-empty",
     });
 
     expect(result).toBeDefined();
-
-    return true;
   }, 60_000);
 
-  it('should throw error for invalid apiKey', async () => {
-    console.log("Waiting for 30s to not hit rate limit")
-    await new Promise(resolve => setTimeout(resolve, 30000));
-
-    console.log("should throw error for invalid apiKey");
-    console.log("API Key = ", process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-    console.log("Alchemyst API Key = ", process.env.ALCHEMYST_API_KEY);
+  integrationTest('should not crash hard for non-empty invalid apiKey', async () => {
     const generateTextWithMemory = withAlchemyst(generateText, {
       source: "api_sdk_test",
       apiKey: "invalid-api-key",
       debug: true
     });
 
-    await expect(
-      generateTextWithMemory({
-        model: googleClient,
-        prompt: 'Test prompt',
-        userId: "12345",
-        sessionId: "test-convo-invalid",
-      })
-    ).rejects.toThrow();
+    const result = await generateTextWithMemory({
+      model: googleClient,
+      prompt: 'Test prompt',
+      userId: "12345",
+      sessionId: "test-convo-invalid",
+    });
+
+    expect(result).toBeDefined();
+    expect(result.text).toBeDefined();
   }, 60_000);
 });

@@ -20,7 +20,7 @@ export const toolParamSchemas = {
     }).optional().describe("Optional metadata for the context"),
   }),
   add_to_memory: z.object({
-    sessionId: z.string().describe("The memory session ID that groups related memories together"),
+    sessionId: z.string().min(1).describe("The memory session ID that groups related memories together"),
     contents: z.array(
       z.object({
         content: z.string().min(1).describe("The content to store in memory (required)"),
@@ -33,10 +33,17 @@ export const toolParamSchemas = {
     ).min(1).describe("Array of content items to add to memory (at least 1 required)")
   }),
   delete_memory: z.object({
-    memoryId: z.string().describe("The memory ID to delete"),
+    memoryId: z.string().min(1).optional().describe("The memory ID to delete"),
+    sessionId: z.string().min(1).optional().describe("Optional session ID alias for memoryId"),
     user_id: z.string().optional().describe("Optional user ID filter"),
     organization_id: z.string().optional().describe("Optional organization ID filter"),
-  }),
+  }).refine(
+    data => Boolean(data.memoryId || data.sessionId),
+    {
+      message: "Either memoryId or sessionId is required.",
+      path: ["memoryId"],
+    }
+  ),
   search_context: z.object({
     query: z.string().min(1, "Query is required.").describe("Search query string"),
     similarity_threshold: z.number().min(0).max(1).default(0.7).describe("Maximum similarity threshold (0-1, default: 0.7)"),
@@ -51,7 +58,7 @@ export const toolParamSchemas = {
     }
   ),
   delete_context: z.object({
-    source: z.string().describe("Source identifier to delete"),
+    source: z.string().min(1).describe("Source identifier to delete"),
     user_id: z.string().optional().describe("Optional user ID filter"),
     organization_id: z.string().optional().describe("Optional organization ID filter"),
     by_doc: z.boolean().optional().default(true).describe("Delete by document (default: true)"),

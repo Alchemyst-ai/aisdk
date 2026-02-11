@@ -1,2 +1,2 @@
 export * from './tool';
-export * from './withAlchemyst';
+export * from './middleware';
