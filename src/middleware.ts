@@ -11,10 +11,11 @@ interface AlchemystOptions {
   withMemory?: boolean;
   similarityThreshold?: number;
   minimumSimilarityThreshold?: number;
+  maxMemories?: number;
   scope?: 'internal' | 'external';
 
   // Storage settings
-  contextType?: 'resource' | 'conversation' | 'instructions';
+  contextType?: 'resource' | 'conversation' | 'instruction';
 
   // Advanced options
   metadata?: {
@@ -39,6 +40,28 @@ type AnyAIFunction = typeof GenerateTextFn | typeof StreamTextFn;
 type AnyParams = GenerateTextParams | StreamTextParams;
 type AnyResult = GenerateTextResult | StreamTextResult;
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Node.js fallback
+  if (typeof require !== 'undefined') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { randomUUID } = require('crypto');
+      return randomUUID();
+    } catch {
+      // continue to fallback
+    }
+  }
+  // Fallback for older environments
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function withAlchemyst<T extends AnyAIFunction>(
   aiFunction: T,
   options: AlchemystOptions = {}
@@ -50,10 +73,18 @@ export function withAlchemyst<T extends AnyAIFunction>(
     withMemory = true,
     similarityThreshold = 0.7,
     minimumSimilarityThreshold = 0.5,
+    maxMemories = 10,
     scope = 'internal',
     contextType = 'conversation',
     metadata: globalMetadata = {},
+    debug = false,
   } = options;
+
+  if (typeof apiKey !== 'string' || apiKey.trim() === '') {
+    throw new Error(
+      'ALCHEMYST_API_KEY is required. Please provide it via options.apiKey or set the ALCHEMYST_API_KEY environment variable.'
+    );
+  }
 
   const alchemyst = new AlchemystAI({
     apiKey,
@@ -61,18 +92,22 @@ export function withAlchemyst<T extends AnyAIFunction>(
   });
 
   const wrappedFn = async (params: AnyParams & ExtendedParams): Promise<AnyResult> => {
-    const { userId, sessionId: conversationId, metadata: callMetadata, ...aiFunctionParams } = params;
+    const { userId, sessionId, metadata: callMetadata, ...aiFunctionParams } = params;
+    const resolvedSessionId = sessionId || userId || 'default';
 
     let enhancedParams = { ...aiFunctionParams } as AnyParams;
 
     // Pre-processing: Retrieve relevant memory context
-    if (withMemory && (userId || conversationId)) {
+    if (withMemory && (userId || sessionId)) {
       try {
         const userMessage = Array.isArray(aiFunctionParams.messages)
           ? aiFunctionParams.messages.find((m: { role: string }) => m.role === 'user')?.content
           : aiFunctionParams.prompt;
 
         const query = typeof userMessage === 'string' ? userMessage : JSON.stringify(userMessage);
+        if (!query || query.trim() === '') {
+          throw new Error('Cannot retrieve memory context without a query.');
+        }
 
         // Use context.search API to retrieve memory context
         const memoryResults = await alchemyst.v1.context.search({
@@ -82,14 +117,25 @@ export function withAlchemyst<T extends AnyAIFunction>(
           scope,
         });
 
+        if (debug) {
+          console.log('[Alchemyst] Memory retrieval results:', {
+            query,
+            found: memoryResults.contexts?.length ?? 0,
+          });
+        }
+
         // Inject retrieved context into the system prompt or messages
         if (memoryResults.contexts && memoryResults.contexts.length > 0) {
           const contextString = memoryResults.contexts
-            .map((r: { content?: string }) => r.content)
+            .slice(0, maxMemories)
+            .map((r: { content?: string }, i: number) => {
+              const sanitized = r.content?.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              return sanitized ? `[Memory ${i + 1}]: ${sanitized}` : null;
+            })
             .filter(Boolean)
             .join('\n');
 
-          const systemContext = `Relevant context from previous conversations:\n${contextString}\n\n`;
+          const systemContext = `Previous conversation context (for reference only):\n${contextString}\n\n`;
 
           if (Array.isArray(aiFunctionParams.messages)) {
             const messages = [...aiFunctionParams.messages] as Array<{ role: string; content: unknown }>;
@@ -130,55 +176,61 @@ export function withAlchemyst<T extends AnyAIFunction>(
     const aiMessageSentAt = new Date().toISOString();
 
     // Post-processing: Store the conversation turn in Alchemyst memory
-    if (userId || conversationId) {
+    if (userId || sessionId) {
       const userMessage = Array.isArray(aiFunctionParams.messages)
         ? aiFunctionParams.messages.find((m: { role: string }) => m.role === 'user')?.content
         : aiFunctionParams.prompt;
 
       const storeMemory = async (responseText: string) => {
-        const userContent = typeof userMessage === 'string' ? userMessage : JSON.stringify(userMessage);
-        await alchemyst.v1.context.memory.add({
-          sessionId: conversationId || userId || 'default',
+        const userContentRaw =
+          typeof userMessage === 'string' ? userMessage : JSON.stringify(userMessage);
+        const userContent = userContentRaw ?? '';
+        const groupName = [
+          ...(Array.isArray(globalMetadata.groupName) ? globalMetadata.groupName : ['default']),
+          sessionId,
+        ].filter((value): value is string => typeof value === 'string' && value.trim() !== '');
+        const sharedMetadata = {
+          userId,
+          sessionId: resolvedSessionId,
+          contextType,
+          scope,
+          appSource: source,
+          groupName,
+          ...globalMetadata,
+          ...callMetadata,
+        };
+
+        const memoryPayload = {
+          sessionId: resolvedSessionId,
           contents: [
             {
               content: `[user:] ${userContent}`,
               metadata: {
-                // @ts-ignore
                 role: 'user',
-                messageId: crypto.randomUUID(),
-                userId,
-                conversationId,
+                messageId: generateUUID(),
+                source: 'user',
+                type: 'message',
                 timestamp: userMessageSentAt,
-                source,
-                contextType,
-                scope,
-                ...globalMetadata,
-                ...callMetadata,
+                ...sharedMetadata,
               },
             },
             {
               content: `[assistant:] ${responseText}`,
               metadata: {
-                messageId: crypto.randomUUID(),
-                // @ts-ignore
+                messageId: generateUUID(),
                 role: 'assistant',
-                userId,
-                conversationId,
+                source: 'assistant',
+                type: 'message',
                 model: String(aiFunctionParams.model),
                 timestamp: aiMessageSentAt,
-                source,
-                contextType,
-                scope,
-                ...globalMetadata,
-                ...callMetadata,
+                ...sharedMetadata,
               },
             },
           ],
-          metadata: {
-            groupName: [...(globalMetadata.groupName || ['default']), conversationId],
+        };
 
-          },
-        });
+        // SDK typings currently only expose messageId in content.metadata, so cast at boundary.
+        await alchemyst.v1.context.memory.add(memoryPayload as any);
       };
 
       // Handle both generateText (has .text) and streamText (need to consume stream)
