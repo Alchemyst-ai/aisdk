@@ -1,6 +1,6 @@
 import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from '@jest/globals';
 import dotenv from 'dotenv';
 import { alchemystTools } from '../src';
 import { join } from 'path';

@@ -1,5 +1,3 @@
-// ...existing code...
-
 import AlchemystAI from "@alchemystai/sdk";
 import { tool } from "ai";
 import type z from "zod";
@@ -90,7 +88,7 @@ export const alchemystTools = <
   if (typeof apiKey === 'string' && apiKey.trim() === '') {
     throw new Error('apiKey must be a non-empty string');
   }
-  
+
   if (!apiKey) {
     throw new Error(
       'ALCHEMYST_API_KEY is required. Please provide it via the apiKey parameter or set the ALCHEMYST_API_KEY environment variable.'
@@ -183,7 +181,7 @@ export const alchemystTools = <
         try {
           const timestamp = new Date().toISOString();
           const contentSize = JSON.stringify(documents).length;
-    
+
           await client.v1.context.add({
             documents: documents,
             source,
@@ -223,7 +221,7 @@ export const alchemystTools = <
             scope,
             body_metadata,
           });
-    
+
           const contexts = response?.contexts ?? [];
           return {
             success: true,

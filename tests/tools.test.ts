@@ -1,10 +1,7 @@
-import type { ToolExecutionOptions } from 'ai';
+
 import { alchemystTools, createAlchemystTools, getAvailableGroups, getAvailableTools, getToolsByGroup } from '../src/tool';
 
-const Options: ToolExecutionOptions = {
-  toolCallId: '',
-  messages: []
-};
+
 
 describe('alchemystTools', () => {
   const originalApiKey = process.env.ALCHEMYST_API_KEY;
@@ -109,8 +106,26 @@ describe('alchemystTools', () => {
       ]);
     });
 
+    it('should expose both inputSchema and parameters on context tools for v6/v5 compatibility', () => {
+      const tools = alchemystTools({ apiKey: 'test-key', withContext: true, withMemory: false });
+
+      for (const toolName of ['add_to_context', 'search_context', 'delete_context'] as const) {
+        expect((tools as any)[toolName].inputSchema).toBeDefined();
+        expect((tools as any)[toolName].parameters).toBeDefined();
+      }
+    });
+
+    it('should expose both inputSchema and parameters on memory tools for v6/v5 compatibility', () => {
+      const tools = alchemystTools({ apiKey: 'test-key', withContext: false, withMemory: true });
+
+      for (const toolName of ['add_to_memory', 'delete_memory'] as const) {
+        expect((tools as any)[toolName].inputSchema).toBeDefined();
+        expect((tools as any)[toolName].parameters).toBeDefined();
+      }
+    });
+
     it('should return only context tools when groupName is ["context"]', () => {
-      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['context'], withContext: true ,withMemory:false});
+      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['context'], withContext: true, withMemory: false });
       expect(Object.keys(tools).sort()).toEqual([
         'add_to_context',
         'delete_context',
@@ -119,7 +134,7 @@ describe('alchemystTools', () => {
     });
 
     it('should return only memory tools when groupName is ["memory"]', () => {
-      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['memory'], withMemory: true,withContext:false });
+      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['memory'], withMemory: true, withContext: false });
       expect(Object.keys(tools).sort()).toEqual([
         'add_to_memory',
         'delete_memory',
@@ -185,7 +200,7 @@ describe('alchemystTools', () => {
           similarity_threshold: 0.7,
           minimum_similarity_threshold: 0.5,
           scope: 'internal',
-        }, Options);
+        }, { toolCallId: 'test-id', messages: [] });
         expect(result.success).toBe(true);
         expect(result.message).toBeDefined();
         expect((result as any).data).toBeDefined();
@@ -199,9 +214,9 @@ describe('alchemystTools', () => {
           similarity_threshold: 0.7,
           minimum_similarity_threshold: 0.5,
           scope: 'internal',
-        }, Options);
+        }, { toolCallId: 'test-id', messages: [] });
 
-        if(Symbol.asyncIterator in result){
+        if (Symbol.asyncIterator in result) {
           throw new Error("Expected non-streaming result, got AsyncIterable")
         }
         expect(result.success).toBe(true);

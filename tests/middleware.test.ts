@@ -109,21 +109,26 @@ describe('withAlchemyst middleware', () => {
     expect(result).toBeDefined();
   }, 60_000);
 
-  integrationTest('should not crash hard for non-empty invalid apiKey', async () => {
+  integrationTest('should generate response even if memory operations fail', async () => {
     const generateTextWithMemory = withAlchemyst(generateText, {
       source: "api_sdk_test",
-      apiKey: "invalid-api-key",
+      apiKey: "invalid-api-key",  // Invalid Alchemyst key
       debug: true
     });
 
+    // Should still generate text (fail-safe behavior)
     const result = await generateTextWithMemory({
-      model: googleClient,
+      model: googleClient,  // Uses GOOGLE_API_KEY, not Alchemyst key
       prompt: 'Test prompt',
       userId: "12345",
       sessionId: "test-convo-invalid",
     });
 
+    // AI generation succeeds
     expect(result).toBeDefined();
     expect(result.text).toBeDefined();
+
+    // But memory operations would have failed silently
+    // This is expected fail-safe behavior
   }, 60_000);
 });
