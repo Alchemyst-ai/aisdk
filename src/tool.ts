@@ -67,7 +67,7 @@ export type AlchemystToolsOptions<
   WithMemory extends boolean = false,
 > = {
   apiKey?: string;
-  /** @deprecated groupName is accepted for backward compatibility but not used for tool selection. */
+  /** Group name for organizing tools (used for validation and backward compatibility) */
   groupName?: string[];
   withContext?: WithContext;
   withMemory?: WithMemory;
