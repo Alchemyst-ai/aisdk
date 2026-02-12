@@ -11,6 +11,7 @@ interface AlchemystOptions {
   withMemory?: boolean;
   similarityThreshold?: number;
   minimumSimilarityThreshold?: number;
+  maxMemories?: number;
   scope?: 'internal' | 'external';
 
   // Storage settings
@@ -39,6 +40,28 @@ type AnyAIFunction = typeof GenerateTextFn | typeof StreamTextFn;
 type AnyParams = GenerateTextParams | StreamTextParams;
 type AnyResult = GenerateTextResult | StreamTextResult;
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Node.js fallback
+  if (typeof require !== 'undefined') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { randomUUID } = require('crypto');
+      return randomUUID();
+    } catch {
+      // continue to fallback
+    }
+  }
+  // Fallback for older environments
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function withAlchemyst<T extends AnyAIFunction>(
   aiFunction: T,
   options: AlchemystOptions = {}
@@ -50,9 +73,11 @@ export function withAlchemyst<T extends AnyAIFunction>(
     withMemory = true,
     similarityThreshold = 0.7,
     minimumSimilarityThreshold = 0.5,
+    maxMemories = 10,
     scope = 'internal',
     contextType = 'conversation',
     metadata: globalMetadata = {},
+    debug = false,
   } = options;
 
   if (typeof apiKey !== 'string' || apiKey.trim() === '') {
@@ -92,14 +117,25 @@ export function withAlchemyst<T extends AnyAIFunction>(
           scope,
         });
 
+        if (debug) {
+          console.log('[Alchemyst] Memory retrieval results:', {
+            query,
+            found: memoryResults.contexts?.length ?? 0,
+          });
+        }
+
         // Inject retrieved context into the system prompt or messages
         if (memoryResults.contexts && memoryResults.contexts.length > 0) {
           const contextString = memoryResults.contexts
-            .map((r: { content?: string }) => r.content)
+            .slice(0, maxMemories)
+            .map((r: { content?: string }, i: number) => {
+              const sanitized = r.content?.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              return sanitized ? `[Memory ${i + 1}]: ${sanitized}` : null;
+            })
             .filter(Boolean)
             .join('\n');
 
-          const systemContext = `Relevant context from previous conversations:\n${contextString}\n\n`;
+          const systemContext = `Previous conversation context (for reference only):\n${contextString}\n\n`;
 
           if (Array.isArray(aiFunctionParams.messages)) {
             const messages = [...aiFunctionParams.messages] as Array<{ role: string; content: unknown }>;
@@ -171,7 +207,7 @@ export function withAlchemyst<T extends AnyAIFunction>(
               content: `[user:] ${userContent}`,
               metadata: {
                 role: 'user',
-                messageId: crypto.randomUUID(),
+                messageId: generateUUID(),
                 source: 'user',
                 type: 'message',
                 timestamp: userMessageSentAt,
@@ -181,7 +217,7 @@ export function withAlchemyst<T extends AnyAIFunction>(
             {
               content: `[assistant:] ${responseText}`,
               metadata: {
-                messageId: crypto.randomUUID(),
+                messageId: generateUUID(),
                 role: 'assistant',
                 source: 'assistant',
                 type: 'message',

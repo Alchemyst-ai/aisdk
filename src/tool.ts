@@ -73,8 +73,6 @@ export type AlchemystToolsOptions<
   withMemory?: WithMemory;
 };
 
-// ...existing code...
-
 export const alchemystTools = <
   WithContext extends boolean = true,
   WithMemory extends boolean = false,
