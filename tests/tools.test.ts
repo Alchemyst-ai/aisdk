@@ -1,14 +1,18 @@
-import type { ToolExecutionOptions } from 'ai';
-import { alchemystTools, getAvailableGroups, getAvailableTools, getToolsByGroup } from '../src/tool';
-const AlchemystAI = require('@alchemystai/sdk');
 
-const Options: ToolExecutionOptions = {
-  toolCallId: '',
-  messages: []
-};
+import { alchemystTools, createAlchemystTools, getAvailableGroups, getAvailableTools, getToolsByGroup } from '../src/tool';
+
+
 
 describe('alchemystTools', () => {
-  const originalEnv = process.env;
+  const originalApiKey = process.env.ALCHEMYST_API_KEY;
+
+  afterEach(() => {
+    if (typeof originalApiKey === 'undefined') {
+      delete process.env.ALCHEMYST_API_KEY;
+    } else {
+      process.env.ALCHEMYST_API_KEY = originalApiKey;
+    }
+  });
 
   describe('initialization', () => {
     it('should throw error when apiKey is not provided and not in env', () => {
@@ -37,14 +41,17 @@ describe('alchemystTools', () => {
     });
 
     it('should throw error when groupName contains empty strings', () => {
-      // use an array containing an empty string to test this validation
       expect(() => alchemystTools({ apiKey: 'test-key', groupName: [''] })).toThrow(
         'All group names must be non-empty strings'
       );
     });
 
-    // The implementation currently does not validate arbitrary group names,
-    // so this test asserts that passing an unknown group name does not throw.
+    it('should throw error when groupName contains whitespace-only strings', () => {
+      expect(() => alchemystTools({ apiKey: 'test-key', groupName: ['  '] })).toThrow(
+        'All group names must be non-empty strings'
+      );
+    });
+
     it('should NOT throw for unknown group names (implementation does not validate groupName values)', () => {
       expect(() => alchemystTools({ apiKey: 'test-key', groupName: ['invalid'] })).not.toThrow();
     });
@@ -57,38 +64,92 @@ describe('alchemystTools', () => {
 
     it('should return all tools when withMemory and withContext are true', () => {
       const tools = alchemystTools({ apiKey: 'test-key', withMemory: true, withContext: true });
-      expect(Object.keys(tools)).toContain('add_to_context');
-      expect(Object.keys(tools)).toContain('search_context');
-      expect(Object.keys(tools)).toContain('delete_context');
-      expect(Object.keys(tools)).toContain('add_to_memory');
-      expect(Object.keys(tools)).toContain('delete_memory');
+      expect(Object.keys(tools).sort()).toEqual([
+        'add_to_context',
+        'add_to_memory',
+        'delete_context',
+        'delete_memory',
+        'search_context',
+      ]);
+    });
+
+    it('should return empty toolset when withMemory and withContext are false', () => {
+      const tools = alchemystTools({ apiKey: 'test-key', withMemory: false, withContext: false });
+      expect(Object.keys(tools)).toHaveLength(0);
+    });
+
+    it('createAlchemystTools should match alchemystTools behavior', () => {
+      const tools = createAlchemystTools({ apiKey: 'test-key', withMemory: true, withContext: false });
+      expect(Object.keys(tools)).toEqual(['add_to_memory', 'delete_memory']);
+    });
+
+    it('createAlchemystTools should return empty toolset when both flags are false', () => {
+      const tools = createAlchemystTools({ apiKey: 'test-key', withMemory: false, withContext: false });
+      expect(Object.keys(tools)).toHaveLength(0);
+    });
+
+    it('should return only context tools by default', () => {
+      const tools = alchemystTools({ apiKey: 'test-key' });
+      expect(Object.keys(tools).sort()).toEqual([
+        'add_to_context',
+        'delete_context',
+        'search_context',
+      ]);
+    });
+
+    it('createAlchemystTools should return only context tools by default', () => {
+      const tools = createAlchemystTools({ apiKey: 'test-key' });
+      expect(Object.keys(tools).sort()).toEqual([
+        'add_to_context',
+        'delete_context',
+        'search_context',
+      ]);
+    });
+
+    it('should expose both inputSchema and parameters on context tools for v6/v5 compatibility', () => {
+      const tools = alchemystTools({ apiKey: 'test-key', withContext: true, withMemory: false });
+
+      for (const toolName of ['add_to_context', 'search_context', 'delete_context'] as const) {
+        expect((tools as any)[toolName].inputSchema).toBeDefined();
+        expect((tools as any)[toolName].parameters).toBeDefined();
+      }
+    });
+
+    it('should expose both inputSchema and parameters on memory tools for v6/v5 compatibility', () => {
+      const tools = alchemystTools({ apiKey: 'test-key', withContext: false, withMemory: true });
+
+      for (const toolName of ['add_to_memory', 'delete_memory'] as const) {
+        expect((tools as any)[toolName].inputSchema).toBeDefined();
+        expect((tools as any)[toolName].parameters).toBeDefined();
+      }
     });
 
     it('should return only context tools when groupName is ["context"]', () => {
-      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['context'], withContext: true ,withMemory:false});
-      expect(Object.keys(tools)).toContain('add_to_context');
-      expect(Object.keys(tools)).toContain('search_context');
-      expect(Object.keys(tools)).toContain('delete_context');
-      expect(Object.keys(tools)).not.toContain('add_to_memory');
-      expect(Object.keys(tools)).not.toContain('delete_memory');
+      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['context'], withContext: true, withMemory: false });
+      expect(Object.keys(tools).sort()).toEqual([
+        'add_to_context',
+        'delete_context',
+        'search_context',
+      ]);
     });
 
     it('should return only memory tools when groupName is ["memory"]', () => {
-      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['memory'], withMemory: true,withContext:false });
-      expect(Object.keys(tools)).not.toContain('add_to_context');
-      expect(Object.keys(tools)).not.toContain('search_context');
-      expect(Object.keys(tools)).not.toContain('delete_context');
-      expect(Object.keys(tools)).toContain('add_to_memory');
-      expect(Object.keys(tools)).toContain('delete_memory');
+      const tools = alchemystTools({ apiKey: 'test-key', groupName: ['memory'], withMemory: true, withContext: false });
+      expect(Object.keys(tools).sort()).toEqual([
+        'add_to_memory',
+        'delete_memory',
+      ]);
     });
 
     it('should return both context and memory tools when groupName includes both', () => {
       const tools = alchemystTools({ apiKey: 'test-key', groupName: ['context', 'memory'], withContext: true, withMemory: true });
-      expect(Object.keys(tools)).toContain('add_to_context');
-      expect(Object.keys(tools)).toContain('search_context');
-      expect(Object.keys(tools)).toContain('delete_context');
-      expect(Object.keys(tools)).toContain('add_to_memory');
-      expect(Object.keys(tools)).toContain('delete_memory');
+      expect(Object.keys(tools).sort()).toEqual([
+        'add_to_context',
+        'add_to_memory',
+        'delete_context',
+        'delete_memory',
+        'search_context',
+      ]);
     });
   });
 
@@ -113,7 +174,6 @@ describe('alchemystTools', () => {
           scope: 'internal',
         });
 
-        // Ensure the result is not a streaming AsyncIterable
         if (result && typeof (result as any)[Symbol.asyncIterator] === 'function') {
           throw new Error('Expected non-streaming result, got AsyncIterable');
         }
@@ -124,25 +184,8 @@ describe('alchemystTools', () => {
         }
       });
 
-      // it('should handle errors gracefully', async () => {
-      //   const errorTools = alchemystTools({ apiKey: 'test-key', groupName: ['context'], withContext: true });
-      //   const execute = errorTools.add_to_context.execute;
-      //   const result = await execute({
-      //     documents: [{ content: 'test content' }],
-      //     source: 'test-source',
-      //     context_type: 'resource',
-      //     scope: 'internal',
-      //   },Options); // add_to_context -> result -> false got true
 
-      //   if(Symbol.asyncIterator in result){
-      //     throw new Error("Expected non-streaming result, got AsyncIterable")
-      //   }
-      //   expect(result.success).toBe(false);
-      //   // implementation returns error property on context errors
-      //   const errMsg = result.message;
-      //   expect(errMsg).toContain('API Error');
 
-      // });
     });
 
     describe('search_context', () => {
@@ -157,7 +200,7 @@ describe('alchemystTools', () => {
           similarity_threshold: 0.7,
           minimum_similarity_threshold: 0.5,
           scope: 'internal',
-        });
+        }, { toolCallId: 'test-id', messages: [] });
         expect(result.success).toBe(true);
         expect(result.message).toBeDefined();
         expect((result as any).data).toBeDefined();
@@ -171,13 +214,12 @@ describe('alchemystTools', () => {
           similarity_threshold: 0.7,
           minimum_similarity_threshold: 0.5,
           scope: 'internal',
-        },Options);
+        }, { toolCallId: 'test-id', messages: [] });
 
-        if(Symbol.asyncIterator in result){
+        if (Symbol.asyncIterator in result) {
           throw new Error("Expected non-streaming result, got AsyncIterable")
         }
         expect(result.success).toBe(true);
-        // search_context returns data: contexts array
         expect((result as any).data).toEqual([]);
       });
     });
@@ -260,28 +302,8 @@ describe('alchemystTools', () => {
         expect(result.message).toContain('Successfully added 2 item(s)');
       });
 
-      // it('should handle errors gracefully', async () => {
-      //   const errorTools = alchemystTools({ apiKey: 'test-key', groupName: ['memory'], withMemory: true });
-      //   const execute = errorTools.add_to_memory.execute;
-      //   const result = await execute({
-      //     sessionId: 'session-123',
-      //     contents: [
-      //       {
-      //         content: 'test',
-      //         metadata: { source: 'src', messageId: 'msg', type: 'type' },
-      //       },
-      //     ],
-      //   },Options);
 
-      //   if(Symbol.asyncIterator in result){
-      //     throw new Error("Expected non-streaming result, got AsyncIterable")
-      //   }
 
-      //   expect(result.success).toBe(false);
-      //   // memory.add_to_memory returns message on error
-      //   const errMsg = result.message;
-      //   expect(errMsg).toContain('Memory Error');
-      // },);
     });
 
     describe('delete_memory', () => {
@@ -308,28 +330,39 @@ describe('alchemystTools', () => {
         expect(result.success).toBe(true);
         expect(result.message).toContain("Successfully deleted memory");
       });
+
+      it('should accept sessionId as memoryId alias', async () => {
+        const execute = tools.delete_memory.execute;
+        const result = await execute({
+          sessionId: 'session-123',
+        });
+        expect(result.success).toBe(true);
+        expect(result.message).toContain('session-123');
+      });
+
+      it('should return failure if memoryId and sessionId mismatch', async () => {
+        const execute = tools.delete_memory.execute;
+        const result = await execute({
+          memoryId: 'memory-123',
+          sessionId: 'session-123',
+        });
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('do not match');
+      });
+
+      it('should accept matching memoryId and sessionId', async () => {
+        const execute = tools.delete_memory.execute;
+        const result = await execute({
+          memoryId: 'same-id',
+          sessionId: 'same-id',
+        });
+        expect(result.success).toBe(true);
+      });
     });
   });
 
-  // describe('error handling with non-Error objects', () => {
-  //   it('should handle string errors', async () => {
-  //     const tools = alchemystTools({ apiKey: 'test-key', groupName: ['context'], withContext: true });
-  //     const execute = tools.add_to_context.execute;
-  //     const result = await execute({
-  //       documents: [{ content: 'test' }],
-  //       source: 'test',
-  //       context_type: 'resource',
-  //       scope: 'internal',
-  //     },Options);
 
-  //     if(Symbol.asyncIterator in result){
-  //       throw new Error("Expected non-streaming result, got AsyncIterable")
-  //     }
 
-  //     expect(result.success).toBe(false);
-  //     expect(result.message).toContain('String error');
-  //   });
-  // });
 });
 
 describe('getAvailableGroups', () => {

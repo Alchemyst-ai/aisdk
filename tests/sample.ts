@@ -1,21 +1,30 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { withAlchemyst } from '../src';
 import dotenv from 'dotenv';
-import { withAlchemyst } from '../src/middleware';
 
 dotenv.config();
 
-process.env.GOOGLE_GENERATIVE_AI_API_KEY = 'YOUR_GEMINI_API_KEY';
+// Validate environment variables
+if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  console.error('❌ GOOGLE_GENERATIVE_AI_API_KEY not set');
+  process.exit(1);
+}
+if (!process.env.ALCHEMYST_API_KEY) {
+  console.error('❌ ALCHEMYST_API_KEY not set');
+  process.exit(1);
+}
 
-const googleClient = google("gemini-2.5-flash")
-
-const generateTextWithMemory = withAlchemyst(generateText, { source: "api_sdk_test", apiKey: "YOUR_ALCHEMYST_API_KEY", debug: true });
-
-const { text } = await generateTextWithMemory({
-  model: googleClient,
-  prompt: 'What is love?',
-  userId: "12345",
-  sessionId: "YOUR_CONVO_ID",
+const generateTextWithMemory = withAlchemyst(generateText, {
+  apiKey: process.env.ALCHEMYST_API_KEY,
+  source: "api_sdk_sample"
 });
 
-console.log(text)
+const { text } = await generateTextWithMemory({
+  model: google("gemini-2.0-flash-exp"),
+  prompt: 'What is love?',
+  userId: "user-12345",
+  sessionId: `session-${Date.now()}`
+});
+
+console.log(text);
